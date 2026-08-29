@@ -1,6 +1,6 @@
 # 🍏 CalTrack - Smart Calorie Tracker
 
-CalTrack adalah aplikasi pelacak nutrisi, hidrasi, dan kebugaran cerdas berbasis mobile (*cross-platform*). Dibangun menggunakan **Flutter** dan **Supabase**, aplikasi ini mengintegrasikan **Artificial Intelligence (Google Gemini)** untuk memberikan pengalaman pencatatan makanan (*food logging*) yang otomatis, intuitif, dan mutakhir.
+CalTrack adalah aplikasi pelacak nutrisi, hidrasi, dan kebugaran cerdas berbasis mobile. Dibangun menggunakan **Flutter** dan **Supabase**, aplikasi ini mengintegrasikan **Artificial Intelligence (Google Gemini)** untuk memberikan pengalaman pencatatan makanan (*food logging*) yang otomatis, intuitif, dan mutakhir.
 
 ## ✨ Fitur Unggulan
 
