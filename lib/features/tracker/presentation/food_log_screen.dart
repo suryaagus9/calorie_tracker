@@ -60,14 +60,13 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
     } catch (e) {
       print('Error loading quick add: $e');
       if (mounted) {
-        // PERBAIKAN Teks statis menjadi fungsi tr()
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('failed')}: ${tr('failed_load_history')}'), backgroundColor: Colors.redAccent));
       }
     }
   }
 
   Future<void> _fetchTodayMeals({bool isSilent = false}) async {
-    if (!isSilent) setState(() { _isLoading = true; _hasError = false; }); // Reset error status
+    if (!isSilent) setState(() { _isLoading = true; _hasError = false; });
 
     try {
       final todayStr = DateTime.now().toIso8601String().split('T')[0];
@@ -118,7 +117,6 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
       print('Error loading food log: $e');
       if (mounted) {
         setState(() => _hasError = true);
-        // PERBAIKAN Teks statis menjadi fungsi tr()
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('failed')}: ${tr('check_internet')}'), backgroundColor: Colors.red));
       }
     } finally {
@@ -381,19 +379,24 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
                                 child: Center(child: Text(tr('no_recent_meals'), style: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 13))),
                               )
                             else
-                              GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  childAspectRatio: 2.5,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                ),
-                                itemCount: _quickAddFoods.length,
-                                itemBuilder: (context, index) {
-                                  return _buildQuickFoodItem(_quickAddFoods[index], theme, isDark);
-                                },
+                              Column(
+                                children: [
+                                  for (int i = 0; i < _quickAddFoods.length; i += 2)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 12.0),
+                                      child: Row(
+                                        children: [
+                                          Expanded(child: _buildQuickFoodItem(_quickAddFoods[i], theme, isDark)),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: (i + 1 < _quickAddFoods.length)
+                                                ? _buildQuickFoodItem(_quickAddFoods[i + 1], theme, isDark)
+                                                : const SizedBox.shrink(),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                ],
                               ),
                             const SizedBox(height: 16),
 
@@ -466,7 +469,6 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
                             const SizedBox(height: 16),
 
                             if (_hasError)
-                            // PERBAIKAN Teks statis menjadi fungsi tr()
                               Center(child: Padding(padding: const EdgeInsets.all(16.0), child: Text(tr('failed_load_data_pull'), style: TextStyle(color: Colors.redAccent.shade200, fontWeight: FontWeight.bold))))
                             else if (noMeals)
                               Center(child: Padding(padding: const EdgeInsets.all(16.0), child: Text(tr('no_meals_today'), style: TextStyle(color: theme.textTheme.bodyMedium?.color))))
@@ -516,14 +518,24 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         children: [
           Container(width: 100, height: 16, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(4))),
           const SizedBox(height: 16),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 2.5,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            children: List.generate(4, (index) => Container(decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(16)))),
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Container(height: 70, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(16)))),
+                  const SizedBox(width: 12),
+                  Expanded(child: Container(height: 70, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(16)))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: Container(height: 70, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(16)))),
+                  const SizedBox(width: 12),
+                  Expanded(child: Container(height: 70, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(16)))),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Container(width: double.infinity, height: 50, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(16))),
@@ -545,7 +557,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B).withOpacity(0.7) : Colors.white.withOpacity(0.7),
             borderRadius: BorderRadius.circular(16),
