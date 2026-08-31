@@ -48,7 +48,11 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
   Future<void> _fetchQuickAddFoods() async {
     try {
       final validFoods = await _foodService.fetchQuickAddFoods();
-      List<Map<String, String>> recent = validFoods.map((food) => {
+
+      // PERBAIKAN: Mengubah limit UI menjadi 6 item
+      final limitedFoods = validFoods.take(6).toList();
+
+      List<Map<String, String>> recent = limitedFoods.map((food) => {
         'id': food['id'].toString(),
         'name': food['name'].toString(),
         'cal': food['calories'].toString(),
@@ -518,8 +522,17 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         children: [
           Container(width: 100, height: 16, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(4))),
           const SizedBox(height: 16),
+          // PERBAIKAN SKELETON: Menambahkan satu baris lagi agar memuat 6 kerangka (3 baris x 2 kolom)
           Column(
             children: [
+              Row(
+                children: [
+                  Expanded(child: Container(height: 70, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(16)))),
+                  const SizedBox(width: 12),
+                  Expanded(child: Container(height: 70, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(16)))),
+                ],
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(child: Container(height: 70, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(16)))),
