@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/ai_food_service.dart';
 import '../../../core/services/food_service.dart';
@@ -38,37 +40,159 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 
   final _aiService = AiFoodService();
 
+  final ImagePicker _picker = ImagePicker();
+  Uint8List? _selectedImageBytes;
+
   @override
   void initState() {
     super.initState();
     _searchSupabaseFoods('');
   }
 
-  Future<void> _processAiInput(String input) async {
-    if (input.trim().isEmpty) return;
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+          source: source, maxWidth: 800, imageQuality: 85);
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImageBytes = bytes;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${tr('failed_open_media')}$e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _processAiInput() async {
+    final input = _aiInputCtrl.text.trim();
+    if (input.isEmpty && _selectedImageBytes == null) return;
+
+    FocusScope.of(context).unfocus();
+
+    // Variabel pembatas (Cancellation Token)
+    bool isCancelled = false;
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => Center(
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-            child: const CircularProgressIndicator(color: Color(0xFF9333EA)),
-          )
-      ),
+      builder: (ctx) {
+        final theme = Theme.of(context);
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      )
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF9333EA),
+                              strokeWidth: 4,
+                              strokeCap: StrokeCap.round,
+                            ),
+                          ),
+                          Icon(Icons.auto_awesome_rounded, color: const Color(0xFF9333EA).withOpacity(0.8), size: 28),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        tr('ai_analyzing'),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        tr('scanning_nutrition'),
+                        style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // TOMBOL CANCEL (X)
+                Positioned(
+                  top: 8,
+                  right: 48,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.close_rounded, color: theme.textTheme.displayLarge?.color),
+                      iconSize: 20,
+                      onPressed: () {
+                        isCancelled = true;
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
     );
 
     try {
-      final parsedItems = await _aiService.analyzeFoodsMulti(input);
+      final parsedItems = await _aiService.analyzeFoodsMulti(
+        textInput: input,
+        imageBytes: _selectedImageBytes,
+      );
+
+      // JIKA USER SUDAH KLIK CANCEL, HENTIKAN PROSES DI SINI
+      if (isCancelled) return;
+
+      // JIKA TIDAK DICANCEL, TUTUP DIALOG LOADING
       if (mounted) Navigator.pop(context);
+
       if (parsedItems.isNotEmpty) {
+        setState(() {
+          _aiInputCtrl.clear();
+        });
         _showAiVerificationSheet(parsedItems);
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('cannot_process_food')), backgroundColor: Colors.orange));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(tr('ai_not_detected_error')),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 4),
+              )
+          );
+        }
       }
-      _aiInputCtrl.clear();
     } catch (e) {
+      // JIKA DIBATALKAN, ABAIKAN ERROR TIMEOUT/BATAL
+      if (isCancelled) return;
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
@@ -99,9 +223,34 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                     Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
                     const SizedBox(height: 24),
                     Text(tr('ai_verification_result'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
-                    // PERBAIKAN Teks statis menjadi fungsi tr()
                     Text(tr('remove_unnecessary_options'), style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color)),
-                    const SizedBox(height: 16),
+
+                    // ==========================================
+                    // FITUR SNAPSHOT BOUNDING BOX
+                    // ==========================================
+                    if (_selectedImageBytes != null) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          children: [
+                            Image.memory(
+                              _selectedImageBytes!,
+                              width: double.infinity,
+                              height: 180,
+                              fit: BoxFit.cover,
+                            ),
+                            Positioned.fill(
+                              child: CustomPaint(
+                                // Mengirim TextStyle bawaan aplikasi ke dalam Painter
+                                painter: BoundingBoxPainter(parsedItems, theme.textTheme.bodyMedium ?? const TextStyle()),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    // ==========================================
 
                     Expanded(
                       child: ListView.separated(
@@ -111,21 +260,40 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                           final item = parsedItems[index];
                           final matches = item['matches'] as List<Map<String, dynamic>>;
                           final fallback = item['fallback'];
-                          final qty = item['quantity'];
 
-                          return Container(
+                          bool isAiEst = matches.isEmpty || (selectedIndices[index] < matches.length && matches[selectedIndices[index]]['name'].toString().contains('(AI Est.)'));
+
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
                             padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: theme.dividerColor)),
+                            decoration: BoxDecoration(
+                                color: isAiEst ? (isDark ? const Color(0xFF4C1D95).withOpacity(0.15) : const Color(0xFFFAF5FF)) : theme.cardColor,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: isAiEst ? const Color(0xFF9333EA).withOpacity(0.5) : theme.dividerColor,
+                                    width: isAiEst ? 1.5 : 1
+                                )
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.auto_awesome_rounded, size: 16, color: Color(0xFF9333EA)),
+                                    Icon(isAiEst ? Icons.auto_awesome_rounded : Icons.cloud_done_rounded,
+                                        size: 18,
+                                        color: isAiEst ? const Color(0xFF9333EA) : AppTheme.brandPrimary
+                                    ),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      child: Text('${tr('ai_detected')} ${qty.toString().replaceAll(RegExp(r'\.0$'), '')}x ${item['keyword']}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
+                                      child: Text('${tr('ai_detected')} ${item['keyword']}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
                                     ),
+                                    if (isAiEst)
+                                      Container(
+                                        margin: const EdgeInsets.only(right: 8),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(color: const Color(0xFF9333EA).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                        child: Text(tr('new_ai_badge'), style: const TextStyle(fontSize: 10, color: Color(0xFF9333EA), fontWeight: FontWeight.bold)),
+                                      ),
                                     GestureDetector(
                                       onTap: () {
                                         setModalState(() {
@@ -148,7 +316,10 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                 Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(color: isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12)),
+                                  decoration: BoxDecoration(
+                                      color: isAiEst ? (isDark ? Colors.purple.shade900.withOpacity(0.3) : const Color(0xFFF3E8FF)) : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
+                                      borderRadius: BorderRadius.circular(12)
+                                  ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<int>(
                                       value: selectedIndices[index],
@@ -157,8 +328,19 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.textTheme.displayLarge?.color),
                                       items: [
                                         for (int j = 0; j < matches.length; j++)
-                                          DropdownMenuItem(value: j, child: Text('${matches[j]['name']} (${matches[j]['calories']} kcal)', overflow: TextOverflow.ellipsis)),
-                                        DropdownMenuItem(value: matches.length, child: Text('${tr('use_ai_estimation')} (${fallback['calories']} kcal)', style: const TextStyle(color: Color(0xFF9333EA), fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                                          DropdownMenuItem(
+                                              value: j,
+                                              child: Text(
+                                                  '${matches[j]['name']} (${matches[j]['calories']} ${tr('kcal')})',
+                                                  style: TextStyle(
+                                                    color: matches[j]['name'].toString().contains('(AI Est.)') ? const Color(0xFF9333EA) : theme.textTheme.displayLarge?.color,
+                                                    fontWeight: matches[j]['name'].toString().contains('(AI Est.)') ? FontWeight.bold : FontWeight.normal,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis
+                                              )
+                                          ),
+                                        if (matches.isEmpty)
+                                          DropdownMenuItem(value: 0, child: Text('${tr('use_ai_estimation')} (${fallback['calories']} ${tr('kcal')})', style: const TextStyle(color: Color(0xFF9333EA), fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
                                       ],
                                       onChanged: (val) {
                                         if (val != null) setModalState(() => selectedIndices[index] = val);
@@ -179,6 +361,11 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
+
+                          setState(() {
+                            _selectedImageBytes = null;
+                          });
+
                           List<Map<String, dynamic>> cartToProcess = [];
                           for (int i = 0; i < parsedItems.length; i++) {
                             final item = parsedItems[i];
@@ -187,9 +374,11 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                             final selIdx = selectedIndices[i];
                             final qty = item['quantity'];
 
-                            if (selIdx < matches.length) {
+                            if (matches.isNotEmpty && selIdx < matches.length) {
                               final dbFood = matches[selIdx];
-                              cartToProcess.add({'food_id': dbFood['id'].toString(), 'name': dbFood['name'], 'base_cal': (dbFood['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (dbFood['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (dbFood['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (dbFood['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': false});
+                              bool isNewAi = dbFood['name'].toString().contains('(AI Est.)');
+
+                              cartToProcess.add({'food_id': dbFood['id'].toString(), 'name': dbFood['name'], 'base_cal': (dbFood['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (dbFood['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (dbFood['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (dbFood['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': isNewAi});
                             } else {
                               cartToProcess.add({'food_id': null, 'name': '${fallback['name']} (AI Est.)', 'base_cal': (fallback['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (fallback['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (fallback['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (fallback['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': true});
                             }
@@ -208,7 +397,11 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
           },
         );
       },
-    );
+    ).whenComplete(() {
+      setState(() {
+        _selectedImageBytes = null;
+      });
+    });
   }
 
   String _getDefaultMealType() {
@@ -269,8 +462,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                           Container(
                                             margin: const EdgeInsets.only(left: 8),
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                                            child: const Text('AI Est.', style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
+                                            decoration: BoxDecoration(color: Colors.purple.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                                            child: const Text('AI Est.', style: TextStyle(fontSize: 10, color: Colors.purple, fontWeight: FontWeight.bold)),
                                           )
                                       ],
                                     ),
@@ -337,7 +530,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                             for (var item in editingItems) {
                               String? foodId = item['food_id'];
 
-                              if (item['is_custom'] == true) {
+                              if (item['is_custom'] == true && foodId == null) {
                                 foodId = await _foodService.createCustomFood(
                                     item['name'], item['base_cal'], item['base_p'], item['base_c'], item['base_f']
                                 );
@@ -546,7 +739,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                           ElevatedButton.icon(
                             onPressed: () => _showCreateCustomFoodSheet(context, theme, isDark),
                             icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                            label: const Text('Custom', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                            label: Text(tr('custom_food').replaceAll(' Food', ''), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.brandPrimary,
                               elevation: 0,
@@ -558,38 +751,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                       ),
                     ),
 
-                    // AI INPUT BOX
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isDark ? [const Color(0xFF4C1D95).withOpacity(0.3), const Color(0xFF1E3A8A).withOpacity(0.3)] : [const Color(0xFFFAF5FF), const Color(0xFFEFF6FF)],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isDark ? const Color(0xFF7C3AED) : const Color(0xFFD8B4FE)),
-                        ),
-                        child: TextField(
-                          controller: _aiInputCtrl,
-                          style: TextStyle(color: theme.textTheme.displayLarge?.color),
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF9333EA)),
-                            suffixIcon: IconButton(
-                              icon: const Icon(Icons.send_rounded, color: Color(0xFF9333EA)),
-                              onPressed: () { FocusScope.of(context).unfocus(); _processAiInput(_aiInputCtrl.text); },
-                            ),
-                            hintText: tr('ask_ai'),
-                            hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 13),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          onSubmitted: (val) => _processAiInput(val),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // NORMAL SEARCH BOX
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
                       child: TextField(
@@ -607,12 +768,146 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                           contentPadding: const EdgeInsets.symmetric(vertical: 16),
                           filled: true,
                           fillColor: theme.cardColor,
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.dividerColor)),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.brandPrimary)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: theme.dividerColor)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppTheme.brandPrimary)),
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF9333EA).withOpacity(isDark ? 0.15 : 0.08),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            )
+                          ],
+                          border: Border.all(
+                            color: const Color(0xFF9333EA).withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF9333EA).withOpacity(0.1),
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.auto_awesome_rounded, color: Color(0xFF9333EA), size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'AI Smart Scanner',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? const Color(0xFFD8B4FE) : const Color(0xFF7E22CE),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            if (_selectedImageBytes != null)
+                              Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.memory(
+                                        _selectedImageBytes!,
+                                        height: 140,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: GestureDetector(
+                                        onTap: () => setState(() => _selectedImageBytes = null),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.6),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.close, size: 16, color: Colors.white),
+                                        ),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              ),
+
+                            Padding(
+                              padding: const EdgeInsets.only(left: 16, right: 8, top: 4, bottom: 8),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _aiInputCtrl,
+                                      style: TextStyle(color: theme.textTheme.displayLarge?.color, fontSize: 14),
+                                      decoration: InputDecoration(
+                                        hintText: tr('ask_ai'),
+                                        hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color, fontSize: 13),
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                                      ),
+                                      onSubmitted: (_) => _processAiInput(),
+                                    ),
+                                  ),
+                                  Container(
+                                    height: 24,
+                                    width: 1,
+                                    color: theme.dividerColor,
+                                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.camera_alt_rounded, color: theme.textTheme.bodyMedium?.color),
+                                    iconSize: 20,
+                                    splashRadius: 20,
+                                    onPressed: () => _pickImage(ImageSource.camera),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.image_rounded, color: theme.textTheme.bodyMedium?.color),
+                                    iconSize: 20,
+                                    splashRadius: 20,
+                                    onPressed: () => _pickImage(ImageSource.gallery),
+                                  ),
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 4),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF9333EA),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      icon: const Icon(Icons.send_rounded, color: Colors.white),
+                                      iconSize: 18,
+                                      splashRadius: 20,
+                                      onPressed: _processAiInput,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
 
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -703,7 +998,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Text('${food['base_cal']} kcal', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.brandPrimary)),
+                                      Text('${food['base_cal']} ${tr('kcal')}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.brandPrimary)),
                                       const SizedBox(height: 8),
 
                                       GestureDetector(
@@ -792,5 +1087,63 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.brandPrimary))
         )
     );
+  }
+}
+
+class BoundingBoxPainter extends CustomPainter {
+  final List<dynamic> aiItems;
+  final TextStyle baseTextStyle;
+
+  BoundingBoxPainter(this.aiItems, this.baseTextStyle);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (aiItems.isEmpty) return;
+
+    final paint = Paint()
+      ..color = const Color(0xFF9333EA)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0;
+
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+
+    for (var item in aiItems) {
+      List<dynamic> boxRaw = item['box_2d'] ?? [0, 0, 0, 0];
+      if (boxRaw.length == 4 && boxRaw.every((val) => val > 0)) {
+        double ymin = (boxRaw[0] / 1000) * size.height;
+        double xmin = (boxRaw[1] / 1000) * size.width;
+        double ymax = (boxRaw[2] / 1000) * size.height;
+        double xmax = (boxRaw[3] / 1000) * size.width;
+
+        final rect = Rect.fromLTRB(xmin, ymin, xmax, ymax);
+        canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(8)), paint);
+
+        String label = item['keyword'] ?? '';
+
+        textPainter.text = TextSpan(
+          text: ' $label ',
+          style: baseTextStyle.copyWith(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            backgroundColor: const Color(0xFF9333EA),
+            decoration: TextDecoration.none,
+          ),
+        );
+        textPainter.layout();
+
+        double textY = ymin - textPainter.height - 4;
+        if (textY < 0) textY = ymin + 4;
+
+        textPainter.paint(canvas, Offset(xmin, textY));
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant BoundingBoxPainter oldDelegate) {
+    return true;
   }
 }
