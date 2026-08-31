@@ -262,7 +262,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  // PERBAIKAN: TweenAnimationBuilder untuk progres kalori sirkular
                                   TweenAnimationBuilder<double>(
                                       tween: Tween<double>(begin: 0, end: calProgress),
                                       duration: const Duration(milliseconds: 1000),
@@ -280,7 +279,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      // PERBAIKAN: TweenAnimationBuilder untuk angka kalori
                                       TweenAnimationBuilder<int>(
                                           tween: IntTween(begin: 0, end: netCalories),
                                           duration: const Duration(milliseconds: 1000),
@@ -297,7 +295,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 20),
+
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.restaurant_menu_rounded, size: 15, color: theme.textTheme.bodyMedium?.color),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '$_caloriesConsumed ${tr('kcal')}',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.textTheme.displayLarge?.color,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(width: 1, height: 16, color: theme.dividerColor.withOpacity(0.4)),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.local_fire_department_rounded, size: 16, color: Colors.orange),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '-$_caloriesBurned ${tr('kcal')}',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.orange,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
 
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -320,7 +364,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(tr('water_intake'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color)),
-                                // PERBAIKAN: TweenAnimationBuilder untuk angka air
                                 TweenAnimationBuilder<int>(
                                     tween: IntTween(begin: 0, end: _waterConsumed),
                                     duration: const Duration(milliseconds: 1000),
@@ -334,7 +377,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             const SizedBox(height: 16),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              // PERBAIKAN: TweenAnimationBuilder untuk progres air linear
                               child: TweenAnimationBuilder<double>(
                                   tween: Tween<double>(begin: 0, end: waterProgress),
                                   duration: const Duration(milliseconds: 1000),
@@ -547,7 +589,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.fitness_center, size: 18, color: Colors.orange),
+                  Icon(Icons.fitness_center, size: 18, color: isDark ? Colors.purple.shade300 : AppTheme.brandPrimary),
                   const SizedBox(width: 8),
                   Text(tr('exercises'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color)),
                 ],
@@ -570,7 +612,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 ),
-                Text('+${item['cal']} ${tr('kcal')}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange)),
+                Text('${item['cal']} ${tr('kcal')}', style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color, fontWeight: FontWeight.w500)),
               ],
             ),
           )).toList()
