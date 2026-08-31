@@ -222,6 +222,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _buildMetricTileIcon(Icons.bolt_rounded, _getGoalText(goal), tr('current_goal'), isDark ? const Color(0xFF0C4A6E) : const Color(0xFFE0F2FE), Colors.lightBlue, theme, isDark),
                             const SizedBox(height: 32),
 
+                            // ==========================================
+                            // 1. ACCOUNT SECTION (Dipindah ke atas)
+                            // ==========================================
+                            Text(tr('account'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color, letterSpacing: 1.2)),
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: () async {
+                                final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()));
+                                if (result == true) {
+                                  _fetchProfileData(isSilent: false);
+                                  widget.onDataChanged?.call();
+                                } else {
+                                  _fetchProfileData(isSilent: true);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: _getSemiTransparentDecoration(theme, isDark),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF064E3B) : const Color(0xFFF0FDF4),
+                                          borderRadius: BorderRadius.circular(12)
+                                      ),
+                                      child: const Icon(Icons.manage_accounts_outlined, color: AppTheme.brandPrimary),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(tr('edit_profile'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: theme.textTheme.bodyLarge?.color)),
+                                          const SizedBox(height: 2),
+                                          Text(tr('edit_profile_desc'), style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color)),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(Icons.chevron_right, color: theme.textTheme.bodyMedium?.color),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // ==========================================
+                            // 2. APP SETTINGS SECTION (Dipindah ke bawah)
+                            // ==========================================
                             Text(tr('app_settings'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color, letterSpacing: 1.2)),
                             const SizedBox(height: 16),
 
@@ -308,49 +357,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(height: 24),
 
-                            Text(tr('account'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color, letterSpacing: 1.2)),
-                            const SizedBox(height: 16),
-                            GestureDetector(
-                              onTap: () async {
-                                final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()));
-                                if (result == true) {
-                                  _fetchProfileData(isSilent: false);
-                                  widget.onDataChanged?.call();
-                                } else {
-                                  _fetchProfileData(isSilent: true);
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: _getSemiTransparentDecoration(theme, isDark),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF064E3B) : const Color(0xFFF0FDF4),
-                                          borderRadius: BorderRadius.circular(12)
-                                      ),
-                                      child: const Icon(Icons.manage_accounts_outlined, color: AppTheme.brandPrimary),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(tr('edit_profile'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: theme.textTheme.bodyLarge?.color)),
-                                          const SizedBox(height: 2),
-                                          Text(tr('edit_profile_desc'), style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color)),
-                                        ],
-                                      ),
-                                    ),
-                                    Icon(Icons.chevron_right, color: theme.textTheme.bodyMedium?.color),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
+                            // ==========================================
+                            // LOGOUT BUTTON
+                            // ==========================================
                             SizedBox(
                               width: double.infinity,
                               height: 56,
