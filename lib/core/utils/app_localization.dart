@@ -35,6 +35,11 @@ class AppLocalizations {
       // Add Food & Detail
       'ask_ai': 'Ask AI: "Ate 2 plates of fried rice..."', 'search_food_manually': 'Search food manually...', 'food_not_found': 'Food not found', 'item_selected': 'Item(s) Selected', 'create_custom_food': 'Create Custom Food', 'food_name': 'Food Name', 'calories_kcal': 'Calories (Kcal)', 'protein_g': 'Protein (g)', 'carbs_g': 'Carbs (g)', 'fat_g': 'Fat (g)', 'create_food': 'Create Food', 'fill_name_calories': 'Please fill in name and calories', 'custom_food_saved': 'Custom food saved!', 'failed_create_custom_food': 'Failed to create custom food', 'cannot_process_food': 'Cannot process this food.', 'ai_verification_result': 'AI Verification Result', 'choose_accurate_variant': 'Choose the most accurate food variant from the database', 'ai_detected': 'AI detected:', 'use_ai_estimation': 'Use AI Estimation', 'confirm_selection': 'Confirm Selection', 'adjust_food_log': 'Adjust Food Log', 'check_portion_time': 'Check portion and meal time for each item', 'save_items_to_log': 'Save Item(s) to Log', 'successfully_added_log': 'Successfully added to Log!', 'food_detail': 'Food Detail', 'remove_food': 'Remove Food', 'remove_food_confirm': 'Are you sure you want to remove this food from your view?', 'nutritional_information': 'Nutritional Information', 'total_per_serving': 'Total Per Serving', 'meal_type': 'Meal Type', 'number_of_servings': 'Number of Servings', 'serving_standard': '1 Serving = Standard Serving', 'add_to_log': 'Add to Log', 'food_updated': 'Food successfully updated!', 'food_removed': 'Food removed from your list!', 'added_to': 'added to',
 
+      // AI & Smart Scanner
+      'ai_analyzing': 'AI is analyzing...',
+      'scanning_nutrition': 'Scanning nutrition from your plate 🍽️',
+      'new_ai_badge': '✨ New (AI)',
+
       // Water Tracker
       'water_tracker': 'Water Tracker', 'reset_todays_water': 'Reset Today\'s Water', 'small_glass': 'small glass', 'regular_glass': 'regular glass', 'bottle': 'bottle', 'custom_amount': 'Custom Amount', 'add_custom_amount': 'Add Custom Amount',
 
@@ -57,6 +62,9 @@ class AppLocalizations {
       'invalid_weight_height': 'Please enter valid weight (kg) and height (cm) numbers.',
       'failed_load_data_pull': 'Failed to load data. Pull down to refresh.',
       'remove_unnecessary_options': 'Remove the unnecessary options, then confirm.',
+      'failed_open_media': 'Failed to open media: ',
+      'ai_not_detected_error': 'Image/text not detected as food or drink. Please try again with a clearer photo.',
+      'failed_process_ai': 'Failed to process AI: ',
     },
     'id': {
       // General
@@ -73,6 +81,11 @@ class AppLocalizations {
 
       // Add Food & Detail
       'ask_ai': 'Tanya AI: "Makan 2 mangkok bakso..."', 'search_food_manually': 'Cari makanan manual...', 'food_not_found': 'Makanan tidak ditemukan', 'item_selected': 'Item Terpilih', 'create_custom_food': 'Buat Makanan Kustom', 'food_name': 'Nama Makanan', 'calories_kcal': 'Kalori (Kcal)', 'protein_g': 'Protein (g)', 'carbs_g': 'Karbo (g)', 'fat_g': 'Lemak (g)', 'create_food': 'Buat Makanan', 'fill_name_calories': 'Isi nama dan kalori', 'custom_food_saved': 'Makanan kustom tersimpan!', 'failed_create_custom_food': 'Gagal membuat makanan kustom', 'cannot_process_food': 'Tidak dapat memproses makanan ini.', 'ai_verification_result': 'Hasil Verifikasi AI', 'choose_accurate_variant': 'Pilih varian yang paling tepat dari database', 'ai_detected': 'AI mendeteksi:', 'use_ai_estimation': 'Gunakan Estimasi AI', 'confirm_selection': 'Konfirmasi Pilihan', 'adjust_food_log': 'Atur Log Makanan', 'check_portion_time': 'Periksa porsi dan jadwal makan', 'save_items_to_log': 'Simpan Item ke Log', 'successfully_added_log': 'Berhasil ditambahkan ke Log!', 'food_detail': 'Detail Makanan', 'remove_food': 'Hapus Makanan', 'remove_food_confirm': 'Yakin ingin menghapus makanan ini dari daftar Anda?', 'nutritional_information': 'Informasi Gizi', 'total_per_serving': 'Total Per Porsi', 'meal_type': 'Waktu Makan', 'number_of_servings': 'Jumlah Porsi', 'serving_standard': '1 Porsi = Porsi Standar', 'add_to_log': 'Tambah ke Log', 'food_updated': 'Makanan berhasil diperbarui!', 'food_removed': 'Makanan dihapus dari daftar Anda!', 'added_to': 'ditambahkan ke',
+
+      // AI & Smart Scanner
+      'ai_analyzing': 'AI sedang menganalisis...',
+      'scanning_nutrition': 'Memindai nutrisi dari piringmu 🍽️',
+      'new_ai_badge': '✨ Baru (AI)',
 
       // Water Tracker
       'water_tracker': 'Pelacak Air', 'reset_todays_water': 'Reset Air Hari Ini', 'small_glass': 'gelas kecil', 'regular_glass': 'gelas sedang', 'bottle': 'botol', 'custom_amount': 'Jumlah Kustom', 'add_custom_amount': 'Tambah Jumlah',
@@ -96,6 +109,9 @@ class AppLocalizations {
       'invalid_weight_height': 'Tolong masukkan angka berat (kg) dan tinggi badan (cm) yang valid.',
       'failed_load_data_pull': 'Gagal memuat data. Tarik ke bawah untuk memuat ulang.',
       'remove_unnecessary_options': 'Hapus opsi yang tidak dibutuhkan, lalu konfirmasi.',
+      'failed_open_media': 'Gagal membuka media: ',
+      'ai_not_detected_error': 'Gambar/teks tidak terdeteksi sebagai makanan atau minuman. Silakan coba lagi dengan foto yang lebih jelas.',
+      'failed_process_ai': 'Gagal memproses AI: ',
     }
   };
 
