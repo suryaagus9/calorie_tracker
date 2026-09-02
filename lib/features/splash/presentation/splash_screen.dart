@@ -7,6 +7,7 @@ import '../../onboarding/presentation/onboarding_screen.dart';
 import '../../auth/presentation/login_screen.dart';
 import '../../dashboard/presentation/main_navigation.dart';
 
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -88,22 +89,17 @@ class _SplashScreenState extends State<SplashScreen> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withOpacity(0.4),
                 borderRadius: BorderRadius.circular(36),
               ),
               child: Center(
                 child: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4.5),
-                  ),
-                  child: const Icon(
-                    Icons.check_rounded,
-                    color: Colors.white,
-                    size: 36,
-                    weight: 700,
+                  width: 100,
+                  height: 100,
+                  child: Image.asset(
+                    'assets/logo.png',
+                    width: 100,
+                    height: 100,
                   ),
                 ),
               ),

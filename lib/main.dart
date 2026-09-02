@@ -41,7 +41,7 @@ class CalTrackApp extends StatelessWidget {
       valueListenable: AppLocalizations.currentLocale,
       builder: (context, locale, child) {
         return MaterialApp(
-          title: 'CalTrack',
+          title: 'Calorie Tracker',
           debugShowCheckedModeBanner: false,
           themeMode: themeProvider.themeMode,
           theme: AppTheme.lightTheme,
