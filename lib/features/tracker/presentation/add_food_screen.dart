@@ -49,6 +49,56 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     _searchSupabaseFoods('');
   }
 
+  // ==========================================
+  // FITUR: CUSTOM SNACKBAR NOTIFICATION UI
+  // ==========================================
+  void _showCustomSnackBar(String message, {bool isError = true, bool isWarning = false}) {
+    if (!mounted) return;
+
+    Color bgColor;
+    IconData icon;
+    if (isWarning) {
+      bgColor = const Color(0xFFF59E0B); // Amber / Oranye untuk peringatan gambar
+      icon = Icons.warning_amber_rounded;
+    } else if (isError) {
+      bgColor = const Color(0xFFEF4444); // Merah untuk Token habis / Internet error
+      icon = Icons.error_outline_rounded;
+    } else {
+      bgColor = const Color(0xFF10B981); // Hijau untuk Sukses
+      icon = Icons.check_circle_outline_rounded;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.25),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, height: 1.4),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: bgColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
+        elevation: 10,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? image = await _picker.pickImage(
@@ -60,10 +110,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${tr('failed_open_media')}$e'), backgroundColor: Colors.red));
-      }
+      _showCustomSnackBar('${tr('failed_open_media')}$e');
     }
   }
 
@@ -163,10 +210,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       final parsedItems = await _aiService.analyzeFoodsMulti(
         textInput: input,
         imageBytes: _selectedImageBytes,
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (isCancelled) return;
-
       if (mounted) Navigator.pop(context);
 
       if (parsedItems.isNotEmpty) {
@@ -175,33 +221,30 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         });
         _showAiVerificationSheet(parsedItems);
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(tr('ai_not_detected_error')),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 4),
-              )
-          );
-        }
+        // PERINGATAN ORANYE (Benda Mati / Kosong)
+        _showCustomSnackBar(tr('ai_not_detected_error'), isError: false, isWarning: true);
+      }
+    } on TimeoutException catch (_) {
+      if (isCancelled) return;
+      if (mounted) {
+        Navigator.pop(context);
+        // PERINGATAN MERAH (Token habis / Koneksi lelet)
+        _showCustomSnackBar('Timeout: Server terlalu sibuk. ${tr('check_internet')}');
       }
     } catch (e) {
       if (isCancelled) return;
-
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+        // PERINGATAN MERAH (Token habis / Koneksi lelet)
+        _showCustomSnackBar(e.toString());
       }
     }
   }
 
-  // ==========================================
-  // FITUR: LAYAR PENUH IMAGE & BOUNDING BOX
-  // ==========================================
   void _showFullScreenImage(BuildContext context, List<Map<String, dynamic>> parsedItems, ThemeData theme) {
     showGeneralDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.95), // Latar belakang gelap transparan
+      barrierColor: Colors.black.withOpacity(0.95),
       barrierDismissible: true,
       barrierLabel: 'Close',
       pageBuilder: (context, animation, secondaryAnimation) {
@@ -211,16 +254,14 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
             child: Stack(
               children: [
                 Center(
-                  child: InteractiveViewer( // Fitur agar bisa di-zoom/cubit
+                  child: InteractiveViewer(
                     panEnabled: true,
                     minScale: 1.0,
                     maxScale: 4.0,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Gambar dibiarkan merender aspect ratio aslinya
                         Image.memory(_selectedImageBytes!),
-                        // Canvas menempel tepat sesuai ukuran asli gambar
                         Positioned.fill(
                           child: CustomPaint(
                             painter: BoundingBoxPainter(parsedItems, theme.textTheme.bodyMedium ?? const TextStyle()),
@@ -230,7 +271,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                     ),
                   ),
                 ),
-                // Tombol Close di pojok kanan atas
                 Positioned(
                   top: 16,
                   right: 16,
@@ -267,210 +307,201 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
+            // FIX RENDERFLEX: Menggunakan constraints dinamis alih-alih SizedBox statis
+            return Container(
               padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 16),
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.75,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
-                    const SizedBox(height: 24),
-                    Text(tr('ai_verification_result'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
-                    Text(tr('remove_unnecessary_options'), style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color)),
-                    const SizedBox(height: 16),
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.90),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 24),
+                  Text(tr('ai_verification_result'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
+                  Text(tr('remove_unnecessary_options'), style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color)),
+                  const SizedBox(height: 16),
 
-                    // ==========================================
-                    // FITUR SNAPSHOT BOUNDING BOX (VERSI AKURAT)
-                    // ==========================================
-                    if (_selectedImageBytes != null) ...[
-                      Center(
-                        child: GestureDetector(
-                          onTap: () => _showFullScreenImage(context, parsedItems, theme),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: ConstrainedBox(
-                              // Membatasi tinggi agar tidak memenuhi layar bottom sheet
-                              constraints: const BoxConstraints(maxHeight: 220),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  // Hapus fixed height/width agar aspect ratio asli terjaga
-                                  Image.memory(_selectedImageBytes!),
-                                  Positioned.fill(
-                                    child: CustomPaint(
-                                      painter: BoundingBoxPainter(parsedItems, theme.textTheme.bodyMedium ?? const TextStyle()),
-                                    ),
+                  if (_selectedImageBytes != null) ...[
+                    Center(
+                      child: GestureDetector(
+                        onTap: () => _showFullScreenImage(context, parsedItems, theme),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 220),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.memory(_selectedImageBytes!),
+                                Positioned.fill(
+                                  child: CustomPaint(
+                                    painter: BoundingBoxPainter(parsedItems, theme.textTheme.bodyMedium ?? const TextStyle()),
                                   ),
-                                  // Indikator "Ketuk untuk Fullscreen"
-                                  Positioned(
-                                    bottom: 8,
-                                    right: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.6),
-                                          borderRadius: BorderRadius.circular(8)
-                                      ),
-                                      child: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                                ),
+                                Positioned(
+                                  bottom: 8,
+                                  right: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.6),
+                                        borderRadius: BorderRadius.circular(8)
                                     ),
-                                  )
-                                ],
-                              ),
+                                    child: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                                  ),
+                                )
+                              ],
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                    ],
-                    // ==========================================
-
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: parsedItems.length,
-                        separatorBuilder: (ctx, i) => const SizedBox(height: 16),
-                        itemBuilder: (ctx, index) {
-                          final item = parsedItems[index];
-                          final matches = item['matches'] as List<Map<String, dynamic>>;
-                          final fallback = item['fallback'];
-
-                          bool isAiEst = matches.isEmpty || (selectedIndices[index] < matches.length && matches[selectedIndices[index]]['name'].toString().contains('(AI Est.)'));
-
-                          // Menyamakan warna card border dengan warna bounding box
-                          final List<Color> boxColors = const [
-                            Color(0xFF9333EA), Color(0xFF3B82F6), Color(0xFF10B981), Color(0xFFEF4444), Color(0xFFF59E0B), Color(0xFFEAB308),
-                          ];
-                          Color currentBoxColor = boxColors[index % boxColors.length];
-
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                                color: isAiEst ? currentBoxColor.withOpacity(isDark ? 0.15 : 0.05) : theme.cardColor,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                    color: isAiEst ? currentBoxColor.withOpacity(0.5) : theme.dividerColor,
-                                    width: isAiEst ? 1.5 : 1
-                                )
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(isAiEst ? Icons.auto_awesome_rounded : Icons.cloud_done_rounded,
-                                        size: 18,
-                                        color: isAiEst ? currentBoxColor : AppTheme.brandPrimary
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text('${tr('ai_detected')} ${item['keyword']}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
-                                    ),
-                                    if (isAiEst)
-                                      Container(
-                                        margin: const EdgeInsets.only(right: 8),
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(color: currentBoxColor.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
-                                        child: Text(tr('new_ai_badge'), style: TextStyle(fontSize: 10, color: currentBoxColor, fontWeight: FontWeight.bold)),
-                                      ),
-                                    GestureDetector(
-                                      onTap: () {
-                                        setModalState(() {
-                                          parsedItems.removeAt(index);
-                                          selectedIndices.removeAt(index);
-                                        });
-                                        if (parsedItems.isEmpty) {
-                                          Navigator.pop(context);
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                                        child: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
-                                      ),
-                                    )
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                      color: isAiEst ? (isDark ? currentBoxColor.withOpacity(0.2) : currentBoxColor.withOpacity(0.1)) : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
-                                      borderRadius: BorderRadius.circular(12)
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<int>(
-                                      value: selectedIndices[index],
-                                      isExpanded: true,
-                                      dropdownColor: theme.cardColor,
-                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.textTheme.displayLarge?.color),
-                                      items: [
-                                        for (int j = 0; j < matches.length; j++)
-                                          DropdownMenuItem(
-                                              value: j,
-                                              child: Text(
-                                                  '${matches[j]['name']} (${matches[j]['calories']} ${tr('kcal')})',
-                                                  style: TextStyle(
-                                                    color: matches[j]['name'].toString().contains('(AI Est.)') ? currentBoxColor : theme.textTheme.displayLarge?.color,
-                                                    fontWeight: matches[j]['name'].toString().contains('(AI Est.)') ? FontWeight.bold : FontWeight.normal,
-                                                  ),
-                                                  overflow: TextOverflow.ellipsis
-                                              )
-                                          ),
-                                        if (matches.isEmpty)
-                                          DropdownMenuItem(value: 0, child: Text('${tr('use_ai_estimation')} (${fallback['calories']} ${tr('kcal')})', style: TextStyle(color: currentBoxColor, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-                                      ],
-                                      onChanged: (val) {
-                                        if (val != null) setModalState(() => selectedIndices[index] = val);
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
                     ),
                     const SizedBox(height: 16),
-
-                    SizedBox(
-                      width: double.infinity, height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-
-                          setState(() {
-                            _selectedImageBytes = null;
-                          });
-
-                          List<Map<String, dynamic>> cartToProcess = [];
-                          for (int i = 0; i < parsedItems.length; i++) {
-                            final item = parsedItems[i];
-                            final matches = item['matches'] as List<Map<String, dynamic>>;
-                            final fallback = item['fallback'];
-                            final selIdx = selectedIndices[i];
-                            final qty = item['quantity'];
-
-                            if (matches.isNotEmpty && selIdx < matches.length) {
-                              final dbFood = matches[selIdx];
-                              bool isNewAi = dbFood['name'].toString().contains('(AI Est.)');
-
-                              cartToProcess.add({'food_id': dbFood['id'].toString(), 'name': dbFood['name'], 'base_cal': (dbFood['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (dbFood['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (dbFood['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (dbFood['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': isNewAi});
-                            } else {
-                              cartToProcess.add({'food_id': null, 'name': '${fallback['name']} (AI Est.)', 'base_cal': (fallback['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (fallback['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (fallback['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (fallback['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': true});
-                            }
-                          }
-                          _showBulkAddBottomSheet(cartToProcess);
-                        },
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.brandPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
-                        child: Text(tr('confirm_selection'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
                   ],
-                ),
+
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: parsedItems.length,
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 16),
+                      itemBuilder: (ctx, index) {
+                        final item = parsedItems[index];
+                        final matches = item['matches'] as List<Map<String, dynamic>>;
+                        final fallback = item['fallback'];
+
+                        bool isAiEst = matches.isEmpty || (selectedIndices[index] < matches.length && matches[selectedIndices[index]]['name'].toString().contains('(AI Est.)'));
+
+                        final List<Color> boxColors = const [
+                          Color(0xFF9333EA), Color(0xFF3B82F6), Color(0xFF10B981), Color(0xFFEF4444), Color(0xFFF59E0B), Color(0xFFEAB308),
+                        ];
+                        Color currentBoxColor = boxColors[index % boxColors.length];
+
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                              color: isAiEst ? currentBoxColor.withOpacity(isDark ? 0.15 : 0.05) : theme.cardColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: isAiEst ? currentBoxColor.withOpacity(0.5) : theme.dividerColor,
+                                  width: isAiEst ? 1.5 : 1
+                              )
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(isAiEst ? Icons.auto_awesome_rounded : Icons.cloud_done_rounded,
+                                      size: 18,
+                                      color: isAiEst ? currentBoxColor : AppTheme.brandPrimary
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text('${tr('ai_detected')} ${item['keyword']}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
+                                  ),
+                                  if (isAiEst)
+                                    Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(color: currentBoxColor.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                                      child: Text(tr('new_ai_badge'), style: TextStyle(fontSize: 10, color: currentBoxColor, fontWeight: FontWeight.bold)),
+                                    ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setModalState(() {
+                                        parsedItems.removeAt(index);
+                                        selectedIndices.removeAt(index);
+                                      });
+                                      if (parsedItems.isEmpty) {
+                                        Navigator.pop(context);
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                      child: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+                                    ),
+                                  )
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                    color: isAiEst ? (isDark ? currentBoxColor.withOpacity(0.2) : currentBoxColor.withOpacity(0.1)) : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
+                                    borderRadius: BorderRadius.circular(12)
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<int>(
+                                    value: selectedIndices[index],
+                                    isExpanded: true,
+                                    dropdownColor: theme.cardColor,
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.textTheme.displayLarge?.color),
+                                    items: [
+                                      for (int j = 0; j < matches.length; j++)
+                                        DropdownMenuItem(
+                                            value: j,
+                                            child: Text(
+                                                '${matches[j]['name']} (${matches[j]['calories']} ${tr('kcal')})',
+                                                style: TextStyle(
+                                                  color: matches[j]['name'].toString().contains('(AI Est.)') ? currentBoxColor : theme.textTheme.displayLarge?.color,
+                                                  fontWeight: matches[j]['name'].toString().contains('(AI Est.)') ? FontWeight.bold : FontWeight.normal,
+                                                ),
+                                                overflow: TextOverflow.ellipsis
+                                            )
+                                        ),
+                                      if (matches.isEmpty)
+                                        DropdownMenuItem(value: 0, child: Text('${tr('use_ai_estimation')} (${fallback['calories']} ${tr('kcal')})', style: TextStyle(color: currentBoxColor, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) setModalState(() => selectedIndices[index] = val);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity, height: 56,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+
+                        setState(() {
+                          _selectedImageBytes = null;
+                        });
+
+                        List<Map<String, dynamic>> cartToProcess = [];
+                        for (int i = 0; i < parsedItems.length; i++) {
+                          final item = parsedItems[i];
+                          final matches = item['matches'] as List<Map<String, dynamic>>;
+                          final fallback = item['fallback'];
+                          final selIdx = selectedIndices[i];
+                          final qty = item['quantity'];
+
+                          if (matches.isNotEmpty && selIdx < matches.length) {
+                            final dbFood = matches[selIdx];
+                            bool isNewAi = dbFood['name'].toString().contains('(AI Est.)');
+
+                            cartToProcess.add({'food_id': dbFood['id'].toString(), 'name': dbFood['name'], 'base_cal': (dbFood['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (dbFood['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (dbFood['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (dbFood['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': isNewAi});
+                          } else {
+                            cartToProcess.add({'food_id': null, 'name': '${fallback['name']} (AI Est.)', 'base_cal': (fallback['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (fallback['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (fallback['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (fallback['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': true});
+                          }
+                        }
+                        _showBulkAddBottomSheet(cartToProcess);
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.brandPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
+                      child: Text(tr('confirm_selection'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
             );
           },
@@ -506,139 +537,138 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
+            // FIX RENDERFLEX: Menggunakan constraints dinamis
+            return Container(
               padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 16),
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.85,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
-                    const SizedBox(height: 24),
-                    Text(tr('adjust_food_log'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
-                    Text(tr('check_portion_time'), style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color)),
-                    const SizedBox(height: 16),
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.90),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 24),
+                  Text(tr('adjust_food_log'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
+                  Text(tr('check_portion_time'), style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color)),
+                  const SizedBox(height: 16),
 
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: editingItems.length,
-                        separatorBuilder: (ctx, i) => Divider(color: theme.dividerColor, height: 32),
-                        itemBuilder: (ctx, index) {
-                          final item = editingItems[index];
-                          final int currentTotalCal = (item['base_cal'] * item['portion']).round();
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: editingItems.length,
+                      separatorBuilder: (ctx, i) => Divider(color: theme.dividerColor, height: 32),
+                      itemBuilder: (ctx, index) {
+                        final item = editingItems[index];
+                        final int currentTotalCal = (item['base_cal'] * item['portion']).round();
 
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        Expanded(child: Text(item['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color))),
-                                        if (item['is_custom'] == true)
-                                          Container(
-                                            margin: const EdgeInsets.only(left: 8),
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(color: Colors.purple.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                                            child: const Text('AI Est.', style: TextStyle(fontSize: 10, color: Colors.purple, fontWeight: FontWeight.bold)),
-                                          )
-                                      ],
-                                    ),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Expanded(child: Text(item['name'], style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color))),
+                                      if (item['is_custom'] == true)
+                                        Container(
+                                          margin: const EdgeInsets.only(left: 8),
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(color: Colors.purple.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
+                                          child: const Text('AI Est.', style: TextStyle(fontSize: 10, color: Colors.purple, fontWeight: FontWeight.bold)),
+                                        )
+                                    ],
                                   ),
-                                  Text('$currentTotalCal ${tr('kcal')}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary)),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
+                                ),
+                                Text('$currentTotalCal ${tr('kcal')}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary)),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
 
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Container(
-                                    decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.dividerColor)),
-                                    child: Row(
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(Icons.remove, size: 16, color: theme.textTheme.displayLarge?.color),
-                                          onPressed: () { if (item['portion'] > 0.5) setModalState(() => item['portion'] -= 0.5); },
-                                        ),
-                                        Text('${item['portion']} ${tr('portion')}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.textTheme.displayLarge?.color)),
-                                        IconButton(
-                                          icon: Icon(Icons.add, size: 16, color: theme.textTheme.displayLarge?.color),
-                                          onPressed: () { setModalState(() => item['portion'] += 0.5); },
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    height: 48,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.dividerColor)),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: item['meal_type'],
-                                        dropdownColor: theme.cardColor,
-                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.textTheme.displayLarge?.color),
-                                        items: ['Breakfast', 'Lunch', 'Dinner', 'Snack'].map((String value) {
-                                          return DropdownMenuItem<String>(value: value, child: Text(tr(value.toLowerCase())));
-                                        }).toList(),
-                                        onChanged: (newValue) {
-                                          if (newValue != null) setModalState(() => item['meal_type'] = newValue);
-                                        },
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.dividerColor)),
+                                  child: Row(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.remove, size: 16, color: theme.textTheme.displayLarge?.color),
+                                        onPressed: () { if (item['portion'] > 0.5) setModalState(() => item['portion'] -= 0.5); },
                                       ),
+                                      Text('${item['portion']} ${tr('portion')}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.textTheme.displayLarge?.color)),
+                                      IconButton(
+                                        icon: Icon(Icons.add, size: 16, color: theme.textTheme.displayLarge?.color),
+                                        onPressed: () { setModalState(() => item['portion'] += 0.5); },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  height: 48,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.dividerColor)),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: item['meal_type'],
+                                      dropdownColor: theme.cardColor,
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.textTheme.displayLarge?.color),
+                                      items: ['Breakfast', 'Lunch', 'Dinner', 'Snack'].map((String value) {
+                                        return DropdownMenuItem<String>(value: value, child: Text(tr(value.toLowerCase())));
+                                      }).toList(),
+                                      onChanged: (newValue) {
+                                        if (newValue != null) setModalState(() => item['meal_type'] = newValue);
+                                      },
                                     ),
                                   ),
-                                ],
-                              )
-                            ],
-                          );
-                        },
-                      ),
+                                ),
+                              ],
+                            )
+                          ],
+                        );
+                      },
                     ),
-                    const SizedBox(height: 16),
+                  ),
+                  const SizedBox(height: 16),
 
-                    SizedBox(
-                      width: double.infinity, height: 56,
-                      child: ElevatedButton(
-                        onPressed: isSaving ? null : () async {
-                          setModalState(() => isSaving = true);
-                          try {
-                            final todayStr = DateTime.now().toIso8601String().split('T')[0];
+                  SizedBox(
+                    width: double.infinity, height: 56,
+                    child: ElevatedButton(
+                      onPressed: isSaving ? null : () async {
+                        setModalState(() => isSaving = true);
+                        try {
+                          final todayStr = DateTime.now().toIso8601String().split('T')[0];
 
-                            for (var item in editingItems) {
-                              String? foodId = item['food_id'];
+                          for (var item in editingItems) {
+                            String? foodId = item['food_id'];
 
-                              if (item['is_custom'] == true && foodId == null) {
-                                foodId = await _foodService.createCustomFood(
-                                    item['name'], item['base_cal'], item['base_p'], item['base_c'], item['base_f']
-                                );
-                              }
-
-                              int totalCal = (item['base_cal'] * item['portion']).round();
-                              await _foodService.insertMealLog(foodId, todayStr, item['meal_type'], totalCal);
+                            if (item['is_custom'] == true && foodId == null) {
+                              foodId = await _foodService.createCustomFood(
+                                  item['name'], item['base_cal'], item['base_p'], item['base_c'], item['base_f']
+                              );
                             }
 
-                            if (mounted) {
-                              Navigator.pop(context);
-                              setState(() { _selectedFoodsCart.clear(); _dataChanged = true; });
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('successfully_added_log')), backgroundColor: Colors.green));
-                            }
-                          } catch (e) {
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('failed')}: $e'), backgroundColor: Colors.red));
-                          } finally {
-                            if (mounted) setModalState(() => isSaving = false);
+                            int totalCal = (item['base_cal'] * item['portion']).round();
+                            await _foodService.insertMealLog(foodId, todayStr, item['meal_type'], totalCal);
                           }
-                        },
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.brandPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
-                        child: isSaving
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : Text(tr('save_items_to_log').replaceFirst('Item(s)', '${editingItems.length}'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ),
+
+                          if (mounted) {
+                            Navigator.pop(context);
+                            setState(() { _selectedFoodsCart.clear(); _dataChanged = true; });
+                            _showCustomSnackBar(tr('successfully_added_log'), isError: false);
+                          }
+                        } catch (e) {
+                          _showCustomSnackBar('${tr('failed')}: $e');
+                        } finally {
+                          if (mounted) setModalState(() => isSaving = false);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.brandPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
+                      child: isSaving
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(tr('save_items_to_log').replaceFirst('Item(s)', '${editingItems.length}'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
               ),
             );
           },
@@ -690,7 +720,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 
   Future<void> _saveCustomFoodOnly() async {
     if (_customNameCtrl.text.isEmpty || _customCalCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('fill_name_calories'))));
+      _showCustomSnackBar(tr('fill_name_calories'));
       return;
     }
     try {
@@ -701,12 +731,12 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       if (mounted) {
         Navigator.pop(context);
         _dataChanged = true;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('custom_food_saved')), backgroundColor: Colors.green));
+        _showCustomSnackBar(tr('custom_food_saved'), isError: false);
         if (isAllSelected) _searchSupabaseFoods(searchQuery);
         else _fetchRecentFoods(searchQuery);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('failed_create_custom_food')), backgroundColor: Colors.red));
+      _showCustomSnackBar(tr('failed_create_custom_food'));
     }
   }
 
@@ -795,6 +825,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
               Navigator.pop(context, _dataChanged);
             },
             child: Scaffold(
+              // FIX RENDERFLEX: Mencegah bagian utama layar menyusut ke atas saat keyboard terbuka
+              resizeToAvoidBottomInset: false,
               backgroundColor: theme.scaffoldBackgroundColor,
               body: SafeArea(
                 child: Column(
@@ -897,7 +929,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                               ),
                             ),
 
-                            // Pratinjau gambar awal di layar pencarian (tetap menggunakan thumbnail cover)
                             if (_selectedImageBytes != null)
                               Padding(
                                 padding: const EdgeInsets.all(12.0),
@@ -1174,14 +1205,8 @@ class BoundingBoxPainter extends CustomPainter {
   final List<dynamic> aiItems;
   final TextStyle baseTextStyle;
 
-  // Palet warna cerah untuk membedakan setiap Bounding Box
   final List<Color> boxColors = const [
-    Color(0xFF9333EA), // Ungu
-    Color(0xFF3B82F6), // Biru
-    Color(0xFF10B981), // Hijau
-    Color(0xFFEF4444), // Merah
-    Color(0xFFF59E0B), // Jingga
-    Color(0xFFEAB308), // Kuning Emas
+    Color(0xFF9333EA), Color(0xFF3B82F6), Color(0xFF10B981), Color(0xFFEF4444), Color(0xFFF59E0B), Color(0xFFEAB308),
   ];
 
   BoundingBoxPainter(this.aiItems, this.baseTextStyle);
@@ -1197,7 +1222,6 @@ class BoundingBoxPainter extends CustomPainter {
     for (int i = 0; i < aiItems.length; i++) {
       var item = aiItems[i];
 
-      // Ambil warna berdasarkan indeks
       Color currentColor = boxColors[i % boxColors.length];
 
       final paint = Paint()
