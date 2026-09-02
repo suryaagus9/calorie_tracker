@@ -73,7 +73,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 
     FocusScope.of(context).unfocus();
 
-    // Variabel pembatas (Cancellation Token)
     bool isCancelled = false;
 
     showDialog(
@@ -135,7 +134,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                   ),
                 ),
 
-                // TOMBOL CANCEL (X)
                 Positioned(
                   top: 8,
                   right: 48,
@@ -167,10 +165,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         imageBytes: _selectedImageBytes,
       );
 
-      // JIKA USER SUDAH KLIK CANCEL, HENTIKAN PROSES DI SINI
       if (isCancelled) return;
 
-      // JIKA TIDAK DICANCEL, TUTUP DIALOG LOADING
       if (mounted) Navigator.pop(context);
 
       if (parsedItems.isNotEmpty) {
@@ -190,7 +186,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         }
       }
     } catch (e) {
-      // JIKA DIBATALKAN, ABAIKAN ERROR TIMEOUT/BATAL
       if (isCancelled) return;
 
       if (mounted) {
@@ -198,6 +193,65 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
       }
     }
+  }
+
+  // ==========================================
+  // FITUR: LAYAR PENUH IMAGE & BOUNDING BOX
+  // ==========================================
+  void _showFullScreenImage(BuildContext context, List<Map<String, dynamic>> parsedItems, ThemeData theme) {
+    showGeneralDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.95), // Latar belakang gelap transparan
+      barrierDismissible: true,
+      barrierLabel: 'Close',
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Center(
+                  child: InteractiveViewer( // Fitur agar bisa di-zoom/cubit
+                    panEnabled: true,
+                    minScale: 1.0,
+                    maxScale: 4.0,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Gambar dibiarkan merender aspect ratio aslinya
+                        Image.memory(_selectedImageBytes!),
+                        // Canvas menempel tepat sesuai ukuran asli gambar
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: BoundingBoxPainter(parsedItems, theme.textTheme.bodyMedium ?? const TextStyle()),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Tombol Close di pojok kanan atas
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: Container(
+                    decoration: BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24)
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showAiVerificationSheet(List<Map<String, dynamic>> parsedItems) {
@@ -224,28 +278,47 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                     const SizedBox(height: 24),
                     Text(tr('ai_verification_result'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
                     Text(tr('remove_unnecessary_options'), style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color)),
+                    const SizedBox(height: 16),
 
                     // ==========================================
-                    // FITUR SNAPSHOT BOUNDING BOX
+                    // FITUR SNAPSHOT BOUNDING BOX (VERSI AKURAT)
                     // ==========================================
                     if (_selectedImageBytes != null) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Stack(
-                          children: [
-                            Image.memory(
-                              _selectedImageBytes!,
-                              width: double.infinity,
-                              height: 180,
-                              fit: BoxFit.cover,
-                            ),
-                            Positioned.fill(
-                              child: CustomPaint(
-                                // Mengirim TextStyle bawaan aplikasi ke dalam Painter
-                                painter: BoundingBoxPainter(parsedItems, theme.textTheme.bodyMedium ?? const TextStyle()),
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => _showFullScreenImage(context, parsedItems, theme),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: ConstrainedBox(
+                              // Membatasi tinggi agar tidak memenuhi layar bottom sheet
+                              constraints: const BoxConstraints(maxHeight: 220),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  // Hapus fixed height/width agar aspect ratio asli terjaga
+                                  Image.memory(_selectedImageBytes!),
+                                  Positioned.fill(
+                                    child: CustomPaint(
+                                      painter: BoundingBoxPainter(parsedItems, theme.textTheme.bodyMedium ?? const TextStyle()),
+                                    ),
+                                  ),
+                                  // Indikator "Ketuk untuk Fullscreen"
+                                  Positioned(
+                                    bottom: 8,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.6),
+                                          borderRadius: BorderRadius.circular(8)
+                                      ),
+                                      child: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                                    ),
+                                  )
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -263,14 +336,20 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 
                           bool isAiEst = matches.isEmpty || (selectedIndices[index] < matches.length && matches[selectedIndices[index]]['name'].toString().contains('(AI Est.)'));
 
+                          // Menyamakan warna card border dengan warna bounding box
+                          final List<Color> boxColors = const [
+                            Color(0xFF9333EA), Color(0xFF3B82F6), Color(0xFF10B981), Color(0xFFEF4444), Color(0xFFF59E0B), Color(0xFFEAB308),
+                          ];
+                          Color currentBoxColor = boxColors[index % boxColors.length];
+
                           return AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                                color: isAiEst ? (isDark ? const Color(0xFF4C1D95).withOpacity(0.15) : const Color(0xFFFAF5FF)) : theme.cardColor,
+                                color: isAiEst ? currentBoxColor.withOpacity(isDark ? 0.15 : 0.05) : theme.cardColor,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                    color: isAiEst ? const Color(0xFF9333EA).withOpacity(0.5) : theme.dividerColor,
+                                    color: isAiEst ? currentBoxColor.withOpacity(0.5) : theme.dividerColor,
                                     width: isAiEst ? 1.5 : 1
                                 )
                             ),
@@ -281,7 +360,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                   children: [
                                     Icon(isAiEst ? Icons.auto_awesome_rounded : Icons.cloud_done_rounded,
                                         size: 18,
-                                        color: isAiEst ? const Color(0xFF9333EA) : AppTheme.brandPrimary
+                                        color: isAiEst ? currentBoxColor : AppTheme.brandPrimary
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
@@ -291,8 +370,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                       Container(
                                         margin: const EdgeInsets.only(right: 8),
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(color: const Color(0xFF9333EA).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                                        child: Text(tr('new_ai_badge'), style: const TextStyle(fontSize: 10, color: Color(0xFF9333EA), fontWeight: FontWeight.bold)),
+                                        decoration: BoxDecoration(color: currentBoxColor.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                                        child: Text(tr('new_ai_badge'), style: TextStyle(fontSize: 10, color: currentBoxColor, fontWeight: FontWeight.bold)),
                                       ),
                                     GestureDetector(
                                       onTap: () {
@@ -317,7 +396,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                   width: double.infinity,
                                   padding: const EdgeInsets.symmetric(horizontal: 12),
                                   decoration: BoxDecoration(
-                                      color: isAiEst ? (isDark ? Colors.purple.shade900.withOpacity(0.3) : const Color(0xFFF3E8FF)) : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
+                                      color: isAiEst ? (isDark ? currentBoxColor.withOpacity(0.2) : currentBoxColor.withOpacity(0.1)) : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
                                       borderRadius: BorderRadius.circular(12)
                                   ),
                                   child: DropdownButtonHideUnderline(
@@ -333,14 +412,14 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                               child: Text(
                                                   '${matches[j]['name']} (${matches[j]['calories']} ${tr('kcal')})',
                                                   style: TextStyle(
-                                                    color: matches[j]['name'].toString().contains('(AI Est.)') ? const Color(0xFF9333EA) : theme.textTheme.displayLarge?.color,
+                                                    color: matches[j]['name'].toString().contains('(AI Est.)') ? currentBoxColor : theme.textTheme.displayLarge?.color,
                                                     fontWeight: matches[j]['name'].toString().contains('(AI Est.)') ? FontWeight.bold : FontWeight.normal,
                                                   ),
                                                   overflow: TextOverflow.ellipsis
                                               )
                                           ),
                                         if (matches.isEmpty)
-                                          DropdownMenuItem(value: 0, child: Text('${tr('use_ai_estimation')} (${fallback['calories']} ${tr('kcal')})', style: const TextStyle(color: Color(0xFF9333EA), fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                                          DropdownMenuItem(value: 0, child: Text('${tr('use_ai_estimation')} (${fallback['calories']} ${tr('kcal')})', style: TextStyle(color: currentBoxColor, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
                                       ],
                                       onChanged: (val) {
                                         if (val != null) setModalState(() => selectedIndices[index] = val);
@@ -818,6 +897,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                               ),
                             ),
 
+                            // Pratinjau gambar awal di layar pencarian (tetap menggunakan thumbnail cover)
                             if (_selectedImageBytes != null)
                               Padding(
                                 padding: const EdgeInsets.all(12.0),
@@ -1094,22 +1174,37 @@ class BoundingBoxPainter extends CustomPainter {
   final List<dynamic> aiItems;
   final TextStyle baseTextStyle;
 
+  // Palet warna cerah untuk membedakan setiap Bounding Box
+  final List<Color> boxColors = const [
+    Color(0xFF9333EA), // Ungu
+    Color(0xFF3B82F6), // Biru
+    Color(0xFF10B981), // Hijau
+    Color(0xFFEF4444), // Merah
+    Color(0xFFF59E0B), // Jingga
+    Color(0xFFEAB308), // Kuning Emas
+  ];
+
   BoundingBoxPainter(this.aiItems, this.baseTextStyle);
 
   @override
   void paint(Canvas canvas, Size size) {
     if (aiItems.isEmpty) return;
 
-    final paint = Paint()
-      ..color = const Color(0xFF9333EA)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0;
-
     final textPainter = TextPainter(
       textDirection: TextDirection.ltr,
     );
 
-    for (var item in aiItems) {
+    for (int i = 0; i < aiItems.length; i++) {
+      var item = aiItems[i];
+
+      // Ambil warna berdasarkan indeks
+      Color currentColor = boxColors[i % boxColors.length];
+
+      final paint = Paint()
+        ..color = currentColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0;
+
       List<dynamic> boxRaw = item['box_2d'] ?? [0, 0, 0, 0];
       if (boxRaw.length == 4 && boxRaw.every((val) => val > 0)) {
         double ymin = (boxRaw[0] / 1000) * size.height;
@@ -1118,6 +1213,7 @@ class BoundingBoxPainter extends CustomPainter {
         double xmax = (boxRaw[3] / 1000) * size.width;
 
         final rect = Rect.fromLTRB(xmin, ymin, xmax, ymax);
+
         canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(8)), paint);
 
         String label = item['keyword'] ?? '';
@@ -1128,7 +1224,7 @@ class BoundingBoxPainter extends CustomPainter {
             color: Colors.white,
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            backgroundColor: const Color(0xFF9333EA),
+            backgroundColor: currentColor,
             decoration: TextDecoration.none,
           ),
         );
