@@ -49,22 +49,19 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     _searchSupabaseFoods('');
   }
 
-  // ==========================================
-  // FITUR: CUSTOM SNACKBAR NOTIFICATION UI
-  // ==========================================
   void _showCustomSnackBar(String message, {bool isError = true, bool isWarning = false}) {
     if (!mounted) return;
 
     Color bgColor;
     IconData icon;
     if (isWarning) {
-      bgColor = const Color(0xFFF59E0B); // Amber / Oranye untuk peringatan gambar
+      bgColor = const Color(0xFFF59E0B);
       icon = Icons.warning_amber_rounded;
     } else if (isError) {
-      bgColor = const Color(0xFFEF4444); // Merah untuk Token habis / Internet error
+      bgColor = const Color(0xFFEF4444);
       icon = Icons.error_outline_rounded;
     } else {
-      bgColor = const Color(0xFF10B981); // Hijau untuk Sukses
+      bgColor = const Color(0xFF10B981);
       icon = Icons.check_circle_outline_rounded;
     }
 
@@ -221,21 +218,18 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         });
         _showAiVerificationSheet(parsedItems);
       } else {
-        // PERINGATAN ORANYE (Benda Mati / Kosong)
         _showCustomSnackBar(tr('ai_not_detected_error'), isError: false, isWarning: true);
       }
     } on TimeoutException catch (_) {
       if (isCancelled) return;
       if (mounted) {
         Navigator.pop(context);
-        // PERINGATAN MERAH (Token habis / Koneksi lelet)
         _showCustomSnackBar('Timeout: Server terlalu sibuk. ${tr('check_internet')}');
       }
     } catch (e) {
       if (isCancelled) return;
       if (mounted) {
         Navigator.pop(context);
-        // PERINGATAN MERAH (Token habis / Koneksi lelet)
         _showCustomSnackBar(e.toString());
       }
     }
@@ -307,7 +301,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            // FIX RENDERFLEX: Menggunakan constraints dinamis alih-alih SizedBox statis
             return Container(
               padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 16),
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.90),
@@ -537,7 +530,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            // FIX RENDERFLEX: Menggunakan constraints dinamis
             return Container(
               padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 16),
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.90),
@@ -825,7 +817,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
               Navigator.pop(context, _dataChanged);
             },
             child: Scaffold(
-              // FIX RENDERFLEX: Mencegah bagian utama layar menyusut ke atas saat keyboard terbuka
               resizeToAvoidBottomInset: false,
               backgroundColor: theme.scaffoldBackgroundColor,
               body: SafeArea(
