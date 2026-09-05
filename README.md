@@ -19,7 +19,7 @@ Aplikasi ini mengadopsi **Feature-First Architecture** dan memisahkan *Presentat
 
 - **Frontend:** [Flutter](https://flutter.dev/) (Dart)
 - **Backend (BaaS):** [Supabase](https://supabase.com/) (PostgreSQL, Authentication)
-- **Artificial Intelligence:** Google Generative AI (Gemini 3.5 Flash-lite)
+- **Artificial Intelligence:** Google Generative AI (Gemini 3.5 Flash)
 - **State Management:** Provider
 - **Local Storage:** Shared Preferences
 
