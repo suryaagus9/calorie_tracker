@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/ai_food_service.dart';
 import '../../../core/services/food_service.dart';
@@ -224,13 +225,70 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       if (isCancelled) return;
       if (mounted) {
         Navigator.pop(context);
-        _showCustomSnackBar('Timeout: Server terlalu sibuk. ${tr('check_internet')}');
+        _showCustomSnackBar('${tr('ai_timeout')}${tr('check_internet')}');
       }
     } catch (e) {
       if (isCancelled) return;
       if (mounted) {
         Navigator.pop(context);
-        _showCustomSnackBar(e.toString());
+
+        String errorMessage = e.toString().replaceAll('Exception: ', '').trim();
+
+        if (errorMessage.toLowerCase().contains('kuota') ||
+            errorMessage.toLowerCase().contains('habis') ||
+            errorMessage.toLowerCase().contains('quota') ||
+            errorMessage.toLowerCase().contains('exhausted')) {
+
+          showDialog(
+            context: context,
+            builder: (ctx) {
+              final theme = Theme.of(context);
+              return AlertDialog(
+                backgroundColor: theme.cardColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.error_outline_rounded, color: Colors.red, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        tr('ai_busy_title'),
+                        style: TextStyle(color: theme.textTheme.displayLarge?.color, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  '${tr('sorry')}$errorMessage\n\n${tr('manual_search_suggestion')}',
+                  style: TextStyle(color: theme.textTheme.bodyMedium?.color, height: 1.5),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    child: Text(
+                      tr('got_it'),
+                      style: const TextStyle(color: AppTheme.brandPrimary, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          _showCustomSnackBar(errorMessage);
+        }
       }
     }
   }
@@ -360,7 +418,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                         final matches = item['matches'] as List<Map<String, dynamic>>;
                         final fallback = item['fallback'];
 
-                        bool isAiEst = matches.isEmpty || (selectedIndices[index] < matches.length && matches[selectedIndices[index]]['name'].toString().contains('(AI Est.)'));
+                        // PERBAIKAN: Jika item yang dipilih adalah indeks terakhir (matches.length), itu berarti AI Estimasi terpilih
+                        bool isAiEst = selectedIndices[index] == matches.length ||
+                            (selectedIndices[index] < matches.length && matches[selectedIndices[index]]['name'].toString().contains('(AI Est.)'));
 
                         final List<Color> boxColors = const [
                           Color(0xFF9333EA), Color(0xFF3B82F6), Color(0xFF10B981), Color(0xFFEF4444), Color(0xFFF59E0B), Color(0xFFEAB308),
@@ -431,6 +491,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                     dropdownColor: theme.cardColor,
                                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.textTheme.displayLarge?.color),
                                     items: [
+                                      // Looping untuk opsi dari database Supabase
                                       for (int j = 0; j < matches.length; j++)
                                         DropdownMenuItem(
                                             value: j,
@@ -443,8 +504,15 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                                 overflow: TextOverflow.ellipsis
                                             )
                                         ),
-                                      if (matches.isEmpty)
-                                        DropdownMenuItem(value: 0, child: Text('${tr('use_ai_estimation')} (${fallback['calories']} ${tr('kcal')})', style: TextStyle(color: currentBoxColor, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                                      // PERBAIKAN: Selalu tampilkan opsi AI Estimasi sebagai pilihan terakhir
+                                      DropdownMenuItem(
+                                          value: matches.length, // Nilai value adalah panjang data matches
+                                          child: Text(
+                                              '${tr('use_ai_estimation')} (${fallback['calories']} ${tr('kcal')})',
+                                              style: TextStyle(color: currentBoxColor, fontWeight: FontWeight.bold),
+                                              overflow: TextOverflow.ellipsis
+                                          )
+                                      ),
                                     ],
                                     onChanged: (val) {
                                       if (val != null) setModalState(() => selectedIndices[index] = val);
@@ -470,6 +538,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                           _selectedImageBytes = null;
                         });
 
+                        // PERBAIKAN: Format tanggal hari ini menggunakan INTL
+                        String currentDateStr = DateFormat('d MMM').format(DateTime.now());
+
                         List<Map<String, dynamic>> cartToProcess = [];
                         for (int i = 0; i < parsedItems.length; i++) {
                           final item = parsedItems[i];
@@ -478,13 +549,16 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                           final selIdx = selectedIndices[i];
                           final qty = item['quantity'];
 
+                          // Jika memilih dari database (indeks kurang dari matches.length)
                           if (matches.isNotEmpty && selIdx < matches.length) {
                             final dbFood = matches[selIdx];
                             bool isNewAi = dbFood['name'].toString().contains('(AI Est.)');
 
                             cartToProcess.add({'food_id': dbFood['id'].toString(), 'name': dbFood['name'], 'base_cal': (dbFood['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (dbFood['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (dbFood['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (dbFood['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': isNewAi});
                           } else {
-                            cartToProcess.add({'food_id': null, 'name': '${fallback['name']} (AI Est.)', 'base_cal': (fallback['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (fallback['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (fallback['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (fallback['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': true});
+                            // Jika memilih AI Estimasi (indeks sama dengan matches.length atau matches kosong)
+                            // PERBAIKAN: Tambahkan tanggal pada format namanya
+                            cartToProcess.add({'food_id': null, 'name': '${fallback['name']} (AI Est. - $currentDateStr)', 'base_cal': (fallback['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (fallback['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (fallback['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (fallback['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': true});
                           }
                         }
                         _showBulkAddBottomSheet(cartToProcess);
