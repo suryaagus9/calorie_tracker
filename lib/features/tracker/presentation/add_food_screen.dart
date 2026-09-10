@@ -208,7 +208,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       final parsedItems = await _aiService.analyzeFoodsMulti(
         textInput: input,
         imageBytes: _selectedImageBytes,
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 40));
 
       if (isCancelled) return;
       if (mounted) Navigator.pop(context);
