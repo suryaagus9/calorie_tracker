@@ -6,7 +6,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 import '../../auth/presentation/login_screen.dart';
 import '../../dashboard/presentation/main_navigation.dart';
-
+import '../../../core/services/profile_service.dart';
+import '../../onboarding/presentation/setup/personal_info_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,39 +24,43 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkInitialNavigation() async {
-    // 1. Tahan splash screen selama 2.5 detik agar animasi cantik Anda tetap terlihat
     await Future.delayed(const Duration(milliseconds: 2500));
 
     if (!mounted) return;
 
-    // 2. Cek status Onboarding di memori perangkat
     final prefs = await SharedPreferences.getInstance();
     final bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 
     if (!hasSeenOnboarding) {
-      // Jika user belum pernah melihat onboarding (Baru Install), arahkan ke Onboarding
-      await prefs.setBool('hasSeenOnboarding', true); // Tandai agar tidak muncul lagi
-
+      await prefs.setBool('hasSeenOnboarding', true);
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const OnboardingScreen()),
         );
       }
-      return; // Hentikan eksekusi di sini
+      return;
     }
 
-    // 3. Jika sudah melewati Onboarding, cek sesi login Supabase
     final session = Supabase.instance.client.auth.currentSession;
 
     if (session != null) {
-      // Sesi aktif (User belum logout), langsung masuk ke dalam aplikasi
+      // CEGATAN: Cek kelengkapan profil di database
+      final isComplete = await ProfileService().isProfileComplete();
+
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const MainNavigation()),
-        );
+        if (isComplete) {
+          // Profil lengkap -> Masuk aplikasi utama
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const MainNavigation()),
+          );
+        } else {
+          // Profil kosong -> Paksa ke Setup Screen
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const PersonalInfoScreen()),
+          );
+        }
       }
     } else {
-      // Sesi kosong (User sudah logout), arahkan ke Login
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
