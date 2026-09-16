@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_localization.dart';
 import '../../../core/services/progress_service.dart';
+import '../../../core/services/export_service.dart'; // IMPORT BARU
 
 class ProgressScreen extends StatefulWidget {
   final bool isActive;
@@ -20,10 +21,12 @@ class ProgressScreen extends StatefulWidget {
 
 class _ProgressScreenState extends State<ProgressScreen> {
   final _progressService = ProgressService();
+  final _exportService = ExportService(); // INSTANSIASI BARU
   late int _lastToken;
 
   bool _isLoadingSummary = true;
   bool _isLoadingCharts = true;
+  bool _isExporting = false; // INDIKATOR EXPORT
 
   int _selectedFilter = 0;
   final List<String> _filters = ['week', 'month', 'year'];
@@ -78,7 +81,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
       final today = DateTime.now();
       List<String> last7Days = List.generate(7, (i) => today.subtract(Duration(days: i)).toIso8601String().split('T')[0]);
 
-      // PANGGIL SERVICE
       final data = await _progressService.fetchProgressData(last7Days);
 
       int totalCalConsumed = (data['meals'] as List).fold(0, (sum, item) => sum + ((item['calories_consumed'] as num?)?.toInt() ?? 0));
@@ -140,7 +142,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
       List<String> chartDates = List.generate(daysToFetch, (i) => today.subtract(Duration(days: i)).toIso8601String().split('T')[0]);
 
-      // PANGGIL SERVICE
       final data = await _progressService.fetchProgressData(chartDates);
       final chartMeals = data['meals'] as List;
       final chartWorkouts = data['workouts'] as List;
@@ -206,6 +207,75 @@ class _ProgressScreenState extends State<ProgressScreen> {
     ]);
   }
 
+  // FUNGSI UNTUK MENANGANI EKSPOR
+  void _showExportOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(tr('export_data'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                title: Text(tr('export_pdf')),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _handleExport(isPdf: true);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.table_chart, color: Colors.green),
+                title: Text(tr('export_csv')),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _handleExport(isPdf: false);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleExport({required bool isPdf}) async {
+    if (_chartCache[_selectedFilter] == null) return;
+
+    setState(() => _isExporting = true);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('generating_file')), duration: const Duration(seconds: 1)));
+
+    try {
+      final data = _chartCache[_selectedFilter]!;
+      List<String> translatedLabels = List<String>.from(data['labels']);
+
+      // Menerjemahkan label 'Today' jika ada
+      for(int i = 0; i < translatedLabels.length; i++){
+        if(translatedLabels[i] == 'Today') {
+          translatedLabels[i] = tr('today');
+        }
+      }
+
+      if (isPdf) {
+        await _exportService.exportToPdf(data, translatedLabels);
+      } else {
+        await _exportService.exportToCsv(data, translatedLabels);
+      }
+
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('success_export')), backgroundColor: Colors.green));
+
+    } catch (e) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('failed')}: $e'), backgroundColor: Colors.red));
+    } finally {
+      if(mounted) setState(() => _isExporting = false);
+    }
+  }
+
   BoxDecoration _getSemiTransparentDecoration(ThemeData theme, bool isDark) {
     return BoxDecoration(
       color: isDark ? const Color(0xFF1E293B).withOpacity(0.7) : Colors.white.withOpacity(0.7),
@@ -223,7 +293,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         valueListenable: AppLocalizations.currentLocale,
         builder: (context, locale, child) {
           return Scaffold(
-            backgroundColor: Colors.transparent, // Efek Aurora tembus
+            backgroundColor: Colors.transparent,
             body: SafeArea(
               bottom: false,
               child: Column(
@@ -231,12 +301,25 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 24.0, bottom: 16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(tr('progress'), style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
-                        const SizedBox(height: 4),
-                        Text(tr('track_milestones'), style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color)),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(tr('progress'), style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
+                            const SizedBox(height: 4),
+                            Text(tr('track_milestones'), style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color)),
+                          ],
+                        ),
+                        // TOMBOL EXPORT DENGAN INDIKATOR LOADING
+                        _isExporting
+                            ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                            : IconButton(
+                          icon: const Icon(Icons.file_download_outlined),
+                          color: theme.textTheme.displayLarge?.color,
+                          onPressed: _showExportOptions,
+                        ),
                       ],
                     ),
                   ),
