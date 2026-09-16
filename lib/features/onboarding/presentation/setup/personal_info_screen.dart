@@ -67,7 +67,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   void _continueToActivity() {
     if (_dobCtrl.text.isEmpty || _weightCtrl.text.isEmpty || _heightCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        // PERBAIKAN Teks statis menjadi fungsi tr()
         SnackBar(content: Text(tr('fill_all_fields'))),
       );
       return;
@@ -78,7 +77,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
     if (weight == null || weight <= 20 || weight >= 300 || height == null || height <= 50 || height >= 300) {
       ScaffoldMessenger.of(context).showSnackBar(
-        // PERBAIKAN Teks statis menjadi fungsi tr()
         SnackBar(content: Text(tr('invalid_weight_height')), backgroundColor: Colors.redAccent),
       );
       return;
@@ -118,16 +116,16 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
                     Text(tr('personal_data'), style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color, letterSpacing: -0.5)),
                     const SizedBox(height: 4),
-                    Text('We need this to calculate your daily needs', style: TextStyle(fontSize: 14, color: theme.textTheme.bodyMedium?.color)),
+                    Text(tr('we_need_this'), style: TextStyle(fontSize: 14, color: theme.textTheme.bodyMedium?.color)),
                     const SizedBox(height: 32),
 
-                    Text('Gender', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.textTheme.displayLarge?.color)),
+                    Text(tr('gender'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.textTheme.displayLarge?.color)),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(child: _buildGenderCard('Male', Icons.male, selectedGender == 'Male', theme, isDark)),
+                        Expanded(child: _buildGenderCard(tr('male'), 'Male', Icons.male, selectedGender == 'Male', theme, isDark)),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildGenderCard('Female', Icons.female, selectedGender == 'Female', theme, isDark)),
+                        Expanded(child: _buildGenderCard(tr('female'), 'Female', Icons.female, selectedGender == 'Female', theme, isDark)),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -152,7 +150,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Weight', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.textTheme.displayLarge?.color)),
+                              Text(tr('weight'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.textTheme.displayLarge?.color)),
                               const SizedBox(height: 8),
                               _buildTextField(
                                   hint: '0',
@@ -170,7 +168,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Height', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.textTheme.displayLarge?.color)),
+                              Text(tr('height'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.textTheme.displayLarge?.color)),
                               const SizedBox(height: 8),
                               _buildTextField(
                                   hint: '0',
@@ -236,9 +234,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
-  Widget _buildGenderCard(String label, IconData icon, bool isSelected, ThemeData theme, bool isDark) {
+  Widget _buildGenderCard(String displayLabel, String value, IconData icon, bool isSelected, ThemeData theme, bool isDark) {
     return GestureDetector(
-      onTap: () => setState(() => selectedGender = label),
+      onTap: () => setState(() => selectedGender = value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 20),
@@ -255,9 +253,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
         ),
         child: Column(
           children: [
-            Icon(icon, size: 32, color: label == 'Male' ? Colors.blue.shade500 : Colors.pink.shade400),
+            Icon(icon, size: 32, color: value == 'Male' ? Colors.blue.shade500 : Colors.pink.shade400),
             const SizedBox(height: 12),
-            Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? AppTheme.brandPrimary : theme.textTheme.displayLarge?.color)),
+            Text(displayLabel, style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? AppTheme.brandPrimary : theme.textTheme.displayLarge?.color)),
           ],
         ),
       ),
