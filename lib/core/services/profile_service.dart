@@ -3,6 +3,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class ProfileService {
   final _supabase = Supabase.instance.client;
 
+  // Fungsi mengecek apakah user sudah mengisi data Setup (Tinggi & Berat Badan)
+  Future<bool> isProfileComplete() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return false;
+
+      final data = await _supabase.from('users_profile').select('weight_kg, height_cm').eq('id', user.id).maybeSingle();
+
+      if (data == null || data['weight_kg'] == null || data['height_cm'] == null) {
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Mengambil data profil untuk ProfileScreen dan EditProfileScreen
   Future<Map<String, dynamic>> fetchProfileData() async {
     final user = _supabase.auth.currentUser;

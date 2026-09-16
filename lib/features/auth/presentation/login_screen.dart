@@ -6,6 +6,8 @@ import '../../../core/utils/app_localization.dart';
 import '../../../core/services/auth_service.dart';
 import 'register_screen.dart';
 import '../../dashboard/presentation/main_navigation.dart';
+import '../../../core/services/profile_service.dart';
+import '../../onboarding/presentation/setup/personal_info_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,13 +31,21 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _authSubscription = _authService.authStateChanges.listen((data) {
+    // Tambahkan kata kunci async di sini
+    _authSubscription = _authService.authStateChanges.listen((data) async {
       final AuthChangeEvent event = data.event;
       final Session? session = data.session;
 
       if (event == AuthChangeEvent.signedIn && session != null) {
+        // CEGATAN: Cek kelengkapan profil saat baru login
+        final isComplete = await ProfileService().isProfileComplete();
+
         if (mounted) {
-          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const MainNavigation()), (route) => false);
+          if (isComplete) {
+            Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const MainNavigation()), (route) => false);
+          } else {
+            Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const PersonalInfoScreen()), (route) => false);
+          }
         }
       }
 
