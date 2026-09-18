@@ -1,9 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_localization.dart';
 import '../../../core/services/progress_service.dart';
-import '../../../core/services/export_service.dart'; // IMPORT BARU
+import '../../../core/services/export_service.dart';
 
 class ProgressScreen extends StatefulWidget {
   final bool isActive;
@@ -21,12 +22,12 @@ class ProgressScreen extends StatefulWidget {
 
 class _ProgressScreenState extends State<ProgressScreen> {
   final _progressService = ProgressService();
-  final _exportService = ExportService(); // INSTANSIASI BARU
+  final _exportService = ExportService();
   late int _lastToken;
 
   bool _isLoadingSummary = true;
   bool _isLoadingCharts = true;
-  bool _isExporting = false; // INDIKATOR EXPORT
+  bool _isExporting = false;
 
   int _selectedFilter = 0;
   final List<String> _filters = ['week', 'month', 'year'];
@@ -97,12 +98,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('${tr('failed')}: Check your internet connection'),
-                backgroundColor: Colors.red
-            )
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('failed')}: Check your internet connection'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _isLoadingSummary = false);
@@ -152,6 +148,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       List<double> bucketConsumed = List.filled(bucketsCount, 0.0);
       List<double> bucketWater = List.filled(bucketsCount, 0.0);
       List<String> bucketLabels = List.filled(bucketsCount, '');
+      List<String> bucketExportDates = List.filled(bucketsCount, '');
 
       int daysPerBucket = daysToFetch ~/ bucketsCount;
       const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -159,18 +156,24 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
       for (int i = 0; i < bucketsCount; i++) {
         DateTime pivotDate = today.subtract(Duration(days: (i * daysPerBucket) + (daysPerBucket ~/ 2)));
+        DateTime startDate = today.subtract(Duration(days: (i * daysPerBucket) + daysPerBucket - 1));
+        DateTime endDate = today.subtract(Duration(days: i * daysPerBucket));
+        int bIndex = bucketsCount - 1 - i;
 
+        // FORMAT TANGGAL EKSKLUSIF UNTUK EKSPOR FILE
         if (_selectedFilter == 0) {
-          bucketLabels[bucketsCount - 1 - i] = i == 0 ? 'Today' : daysOfWeek[pivotDate.weekday - 1];
+          bucketLabels[bIndex] = i == 0 ? 'Today' : daysOfWeek[pivotDate.weekday - 1];
+          bucketExportDates[bIndex] = DateFormat('dd MMM yyyy').format(endDate);
         } else if (_selectedFilter == 1) {
-          bucketLabels[bucketsCount - 1 - i] = 'W${4 - i}';
+          bucketLabels[bIndex] = 'W${4 - i}';
+          bucketExportDates[bIndex] = 'Week ${4 - i}: ${DateFormat('dd MMM').format(startDate)} - ${DateFormat('dd MMM yyyy').format(endDate)}';
         } else {
-          bucketLabels[bucketsCount - 1 - i] = monthsOfYear[pivotDate.month - 1];
+          bucketLabels[bIndex] = monthsOfYear[pivotDate.month - 1];
+          bucketExportDates[bIndex] = DateFormat('MMMM yyyy').format(pivotDate);
         }
 
         for (int j = 0; j < daysPerBucket; j++) {
           String dStr = today.subtract(Duration(days: (i * daysPerBucket) + j)).toIso8601String().split('T')[0];
-          int bIndex = bucketsCount - 1 - i;
 
           var mealMatch = chartMeals.where((m) => m['date'] == dStr);
           bucketConsumed[bIndex] += mealMatch.fold(0, (sum, item) => sum + ((item['calories_consumed'] as num?)?.toDouble() ?? 0));
@@ -186,10 +189,20 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
       if (mounted) {
         _chartCache[_selectedFilter] = {
-          'labels': bucketLabels, 'workout': bucketWorkout, 'burned': bucketBurned, 'consumed': bucketConsumed, 'water': bucketWater, 'subtitleKey': _chartSubtitleKey,
+          'labels': bucketLabels,
+          'exportDates': bucketExportDates,
+          'workout': bucketWorkout,
+          'burned': bucketBurned,
+          'consumed': bucketConsumed,
+          'water': bucketWater,
+          'subtitleKey': _chartSubtitleKey,
         };
         setState(() {
-          _chartLabels = bucketLabels; _chartWorkoutRaw = bucketWorkout; _chartBurnedRaw = bucketBurned; _chartConsumedRaw = bucketConsumed; _chartWaterRaw = bucketWater;
+          _chartLabels = bucketLabels;
+          _chartWorkoutRaw = bucketWorkout;
+          _chartBurnedRaw = bucketBurned;
+          _chartConsumedRaw = bucketConsumed;
+          _chartWaterRaw = bucketWater;
         });
       }
     } catch (e) {
@@ -207,7 +220,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
     ]);
   }
 
-  // FUNGSI UNTUK MENANGANI EKSPOR
   void _showExportOptions() {
     showModalBottomSheet(
       context: context,
@@ -245,26 +257,37 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   Future<void> _handleExport({required bool isPdf}) async {
-    if (_chartCache[_selectedFilter] == null) return;
-
     setState(() => _isExporting = true);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('generating_file')), duration: const Duration(seconds: 1)));
 
     try {
-      final data = _chartCache[_selectedFilter]!;
-      List<String> translatedLabels = List<String>.from(data['labels']);
+      // 1. Simpan filter yang sedang aktif agar UI tidak berantakan
+      int originalFilter = _selectedFilter;
 
-      // Menerjemahkan label 'Today' jika ada
-      for(int i = 0; i < translatedLabels.length; i++){
-        if(translatedLabels[i] == 'Today') {
-          translatedLabels[i] = tr('today');
+      // 2. Loop dan unduh data untuk 7 Hari(0), 4 Minggu(1), 6 Bulan(2) secara rahasia
+      for (int i = 0; i < 3; i++) {
+        if (!_chartCache.containsKey(i)) {
+          _selectedFilter = i;
+          await _fetchChartData(isSilent: true);
         }
       }
 
+      // 3. Kembalikan filter ke tampilan semula
+      _selectedFilter = originalFilter;
+      setState(() {});
+
+      // 4. Siapkan 3 kelompok data
+      Map<int, Map<String, dynamic>> allDataToExport = {
+        0: _chartCache[0]!,
+        1: _chartCache[1]!,
+        2: _chartCache[2]!,
+      };
+
+      // 5. Kirim data gabungan tersebut ke file generator
       if (isPdf) {
-        await _exportService.exportToPdf(data, translatedLabels);
+        await _exportService.exportToPdf(allDataToExport);
       } else {
-        await _exportService.exportToCsv(data, translatedLabels);
+        await _exportService.exportToCsv(allDataToExport);
       }
 
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('success_export')), backgroundColor: Colors.green));
@@ -312,7 +335,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
                             Text(tr('track_milestones'), style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color)),
                           ],
                         ),
-                        // TOMBOL EXPORT DENGAN INDIKATOR LOADING
                         _isExporting
                             ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
                             : IconButton(
