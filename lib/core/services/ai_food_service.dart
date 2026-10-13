@@ -72,7 +72,7 @@ class AiFoodService {
 
     for (int i = 0; i < apiKeys.length; i++) {
       final currentKey = apiKeys[i];
-      final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: currentKey);
+      final model = GenerativeModel(model: 'gemini-3.6-flash', apiKey: currentKey);
 
       try {
         GenerateContentResponse response;
