@@ -208,7 +208,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       final parsedItems = await _aiService.analyzeFoodsMulti(
         textInput: input,
         imageBytes: _selectedImageBytes,
-      ).timeout(const Duration(seconds: 40));
+      ).timeout(const Duration(seconds: 60));
 
       if (isCancelled) return;
       if (mounted) Navigator.pop(context);
@@ -225,7 +225,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       if (isCancelled) return;
       if (mounted) {
         Navigator.pop(context);
-        _showCustomSnackBar('${tr('ai_timeout')}${tr('check_internet')}');
+        _showCustomSnackBar('${tr('ai_timeout')} ${tr('check_internet')}');
       }
     } catch (e) {
       if (isCancelled) return;
@@ -234,7 +234,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 
         String errorMessage = e.toString().replaceAll('Exception: ', '').trim();
 
-        if (errorMessage.toLowerCase().contains('kuota') ||
+        if (errorMessage.contains('all_ai_tokens_exhausted') ||
+            errorMessage.toLowerCase().contains('kuota') ||
             errorMessage.toLowerCase().contains('habis') ||
             errorMessage.toLowerCase().contains('quota') ||
             errorMessage.toLowerCase().contains('exhausted')) {
@@ -266,7 +267,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                   ],
                 ),
                 content: Text(
-                  '${tr('sorry')}$errorMessage\n\n${tr('manual_search_suggestion')}',
+                  '${tr('sorry')} ${tr('all_ai_tokens_exhausted')}\n\n${tr('manual_search_suggestion')}',
                   style: TextStyle(color: theme.textTheme.bodyMedium?.color, height: 1.5),
                 ),
                 actions: [
