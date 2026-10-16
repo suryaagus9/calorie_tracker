@@ -56,13 +56,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _selectDate(BuildContext context, ThemeData theme, bool isDark) async {
     DateTime initial = DateTime(2000, 1, 1);
-    if (_dobCtrl.text.isNotEmpty) { try { initial = DateTime.parse(_dobCtrl.text); } catch (_) {} }
+    if (_dobCtrl.text.isNotEmpty) {
+      try { initial = DateTime.parse(_dobCtrl.text); } catch (_) {}
+    }
 
     final DateTime? picked = await showDatePicker(
-      context: context, initialDate: initial, firstDate: DateTime(1930), lastDate: DateTime.now(),
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1930),
+      lastDate: DateTime.now(),
       builder: (context, child) {
         return Theme(
-          data: theme.copyWith(colorScheme: ColorScheme.light(primary: AppTheme.brandPrimary, onPrimary: Colors.white, surface: theme.cardColor, onSurface: theme.textTheme.displayLarge!.color!), dialogBackgroundColor: theme.cardColor),
+          data: theme.copyWith(
+              colorScheme: ColorScheme.light(
+                  primary: AppTheme.brandPrimary,
+                  onPrimary: Colors.white,
+                  surface: theme.cardColor,
+                  onSurface: theme.textTheme.displayLarge!.color!
+              ),
+              dialogBackgroundColor: theme.cardColor
+          ),
           child: child!,
         );
       },
@@ -79,24 +92,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveChanges() async {
+
+    if (_nameCtrl.text.trim().isEmpty ||
+        _dobCtrl.text.isEmpty ||
+        _weightCtrl.text.isEmpty ||
+        _heightCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(tr('fill_all_fields')),
+            backgroundColor: Colors.redAccent
+        ),
+      );
+      return;
+    }
+
+    final weight = double.tryParse(_weightCtrl.text.replaceAll(',', '.'));
+    final height = double.tryParse(_heightCtrl.text.replaceAll(',', '.'));
+
+    if (weight == null || weight <= 20 || weight >= 300 || height == null || height <= 50 || height >= 300) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(tr('invalid_weight_height')),
+            backgroundColor: Colors.redAccent
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
     try {
-      // PERBAIKAN: Ganti puluhan baris kalkulasi dengan memanggil 1 fungsi di ProfileService
       await _profileService.updateProfileAndMetrics(
           _weightCtrl.text, _heightCtrl.text, _gender, _dobCtrl.text, _selectedActivity, _selectedGoal
       );
 
-      // Pengecualian: Nama diupdate manual karena ada di auth & tabel terpisah jika dibutuhkan.
-      // Tabel users_profile sudah mengupdate nama jika diintegrasikan, mari update manual untuk nama:
-      await Supabase.instance.client.from('users_profile').update({'full_name': _nameCtrl.text}).eq('id', Supabase.instance.client.auth.currentUser!.id);
+      await Supabase.instance.client.from('users_profile')
+          .update({'full_name': _nameCtrl.text})
+          .eq('id', Supabase.instance.client.auth.currentUser!.id);
 
       if (mounted) {
         _dataChanged = true;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('profile_updated')), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr('profile_updated')), backgroundColor: Colors.green)
+        );
         Navigator.pop(context, _dataChanged);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('failed')}: $e'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${tr('failed')}: $e'), backgroundColor: Colors.red)
+      );
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -123,7 +166,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 elevation: 0,
                 leading: GestureDetector(
                   onTap: () => Navigator.pop(context, _dataChanged),
-                  child: Container(margin: const EdgeInsets.all(8), decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.dividerColor)), child: Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: theme.textTheme.displayLarge?.color)),
+                  child: Container(
+                      margin: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.dividerColor)
+                      ),
+                      child: Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: theme.textTheme.displayLarge?.color)
+                  ),
                 ),
                 title: Text(tr('edit_profile'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color)),
                 centerTitle: false,
@@ -137,6 +188,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   children: [
                     _buildSectionTitle(tr('personal_data'), theme),
                     const SizedBox(height: 16),
+
                     _buildInputLabel(tr('full_name'), theme),
                     _buildTextField(_nameCtrl, Icons.person_outline, theme, isDark),
                     const SizedBox(height: 16),
@@ -161,9 +213,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildInputLabel('Weight (kg)', theme), _buildTextField(_weightCtrl, null, theme, isDark, isCentered: true, isNumber: true)])),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildInputLabel('Weight (kg)', theme),
+                                  _buildTextField(_weightCtrl, null, theme, isDark, isCentered: true, isNumber: true)
+                                ]
+                            )
+                        ),
                         const SizedBox(width: 16),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildInputLabel('Height (cm)', theme), _buildTextField(_heightCtrl, null, theme, isDark, isCentered: true, isNumber: true)])),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildInputLabel('Height (cm)', theme),
+                                  _buildTextField(_heightCtrl, null, theme, isDark, isCentered: true, isNumber: true)
+                                ]
+                            )
+                        ),
                       ],
                     ),
                     const SizedBox(height: 32),
@@ -190,7 +258,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7).withOpacity(0.5), borderRadius: BorderRadius.circular(16)),
+                      decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF064E3B) : const Color(0xFFDCFCE7).withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(16)
+                      ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -218,7 +289,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       width: double.infinity, height: 56,
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _saveChanges,
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.brandPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.brandPrimary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 0
+                        ),
                         child: _isSaving
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                             : Text(tr('save_changes'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
