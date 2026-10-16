@@ -101,11 +101,17 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
       final newK = _parseNumber(_kCtrl.text);
       final newFat = _parseNumber(_fCtrl.text);
 
-      // Jika foodId adalah angka murni yang besar (berarti bukan data kosong awal)
       if (int.tryParse(_foodId) != null && int.parse(_foodId) > 0) {
-        await _foodService.updateFood(_foodId, _nameCtrl.text.trim(), newCal, newP, newK, newFat);
+        final newFoodId = await _foodService.saveEditedLocalFood(
+          oldFoodId: int.parse(_foodId),
+          newName: _nameCtrl.text.trim(),
+          newCalories: newCal,
+          newProtein: newP,
+          newCarbs: newK,
+          newFat: newFat,
+        );
+        _foodId = newFoodId.toString();
       } else {
-        // Buat custom food baru jika ini makanan custom
         _foodId = await _foodService.createCustomFood(_nameCtrl.text.trim(), newCal, newP, newK, newFat);
       }
 

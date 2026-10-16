@@ -418,7 +418,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                         final matches = item['matches'] as List<Map<String, dynamic>>;
                         final fallback = item['fallback'];
 
-                        // PERBAIKAN: Jika item yang dipilih adalah indeks terakhir (matches.length), itu berarti AI Estimasi terpilih
                         bool isAiEst = selectedIndices[index] == matches.length ||
                             (selectedIndices[index] < matches.length && matches[selectedIndices[index]]['name'].toString().contains('(AI Est.)'));
 
@@ -491,7 +490,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                     dropdownColor: theme.cardColor,
                                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.textTheme.displayLarge?.color),
                                     items: [
-                                      // Looping untuk opsi dari database Supabase
                                       for (int j = 0; j < matches.length; j++)
                                         DropdownMenuItem(
                                             value: j,
@@ -504,9 +502,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                                                 overflow: TextOverflow.ellipsis
                                             )
                                         ),
-                                      // PERBAIKAN: Selalu tampilkan opsi AI Estimasi sebagai pilihan terakhir
                                       DropdownMenuItem(
-                                          value: matches.length, // Nilai value adalah panjang data matches
+                                          value: matches.length,
                                           child: Text(
                                               '${tr('use_ai_estimation')} (${fallback['calories']} ${tr('kcal')})',
                                               style: TextStyle(color: currentBoxColor, fontWeight: FontWeight.bold),
@@ -538,7 +535,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                           _selectedImageBytes = null;
                         });
 
-                        // PERBAIKAN: Format tanggal hari ini menggunakan INTL
                         String currentDateStr = DateFormat('d MMM').format(DateTime.now());
 
                         List<Map<String, dynamic>> cartToProcess = [];
@@ -549,15 +545,12 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                           final selIdx = selectedIndices[i];
                           final qty = item['quantity'];
 
-                          // Jika memilih dari database (indeks kurang dari matches.length)
                           if (matches.isNotEmpty && selIdx < matches.length) {
                             final dbFood = matches[selIdx];
                             bool isNewAi = dbFood['name'].toString().contains('(AI Est.)');
 
                             cartToProcess.add({'food_id': dbFood['id'].toString(), 'name': dbFood['name'], 'base_cal': (dbFood['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (dbFood['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (dbFood['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (dbFood['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': isNewAi});
                           } else {
-                            // Jika memilih AI Estimasi (indeks sama dengan matches.length atau matches kosong)
-                            // PERBAIKAN: Tambahkan tanggal pada format namanya
                             cartToProcess.add({'food_id': null, 'name': '${fallback['name']} (AI Est. - $currentDateStr)', 'base_cal': (fallback['calories'] as num?)?.toDouble() ?? 0.0, 'base_p': (fallback['protein'] as num?)?.toDouble() ?? 0.0, 'base_c': (fallback['carbs'] as num?)?.toDouble() ?? 0.0, 'base_f': (fallback['fat'] as num?)?.toDouble() ?? 0.0, 'portion': qty, 'meal_type': _getDefaultMealType(), 'is_custom': true});
                           }
                         }

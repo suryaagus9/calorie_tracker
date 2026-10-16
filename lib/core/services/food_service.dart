@@ -9,7 +9,6 @@ class FoodService {
     return user.id;
   }
 
-  // LOGIKA UNTUK FOOD LOG SCREEN
   Future<List<Map<String, dynamic>>> fetchTodayMeals(String dateStr) async {
     final uid = await _currentUserId;
     final data = await _supabase.from('meal_logs')
@@ -56,7 +55,6 @@ class FoodService {
     }).eq('id', logId);
   }
 
-  // LOGIKA UNTUK ADD FOOD SCREEN
   Future<List<dynamic>> searchFoods(String query) async {
     final uid = await _currentUserId;
     Set<String> hiddenIds = {};
@@ -116,9 +114,32 @@ class FoodService {
     });
   }
 
-  // LOGIKA UNTUK FOOD DETAIL SCREEN
   Future<void> updateFood(String foodId, String name, double cal, double p, double c, double f) async {
     await _supabase.from('foods').update({'name': name, 'calories': cal, 'protein': p, 'carbs': c, 'fat': f}).eq('id', int.parse(foodId));
+  }
+
+  // Fungsi RPC untuk menyimpan kustomisasi makro oleh user
+  Future<int> saveEditedLocalFood({
+    required int oldFoodId,
+    required String newName,
+    required double newCalories,
+    required double newProtein,
+    required double newCarbs,
+    required double newFat,
+  }) async {
+    try {
+      final response = await _supabase.rpc('edit_local_food_to_custom', params: {
+        'p_old_food_id': oldFoodId,
+        'p_new_name': newName,
+        'p_new_calories': newCalories,
+        'p_new_protein': newProtein,
+        'p_new_carbs': newCarbs,
+        'p_new_fat': newFat,
+      });
+      return response as int;
+    } catch (e) {
+      throw Exception('Gagal menyimpan perubahan makro makanan.');
+    }
   }
 
   Future<void> hideOrDeleteFood(String foodId, String creatorId) async {
