@@ -8,7 +8,7 @@ class WorkoutService {
     if (user == null) throw Exception('User not logged in');
 
     final profile = await _supabase.from('users_profile').select('weight_kg').eq('id', user.id).maybeSingle();
-    final exercises = await _supabase.from('exercises').select('*').order('name', ascending: true);
+    final exercises = await _supabase.from('exercises').select('id, name, category, met_value').order('name', ascending: true);
     final logs = await _supabase.from('workout_logs')
         .select('id, duration_minutes, calories_burned, exercises(name)')
         .eq('user_id', user.id)

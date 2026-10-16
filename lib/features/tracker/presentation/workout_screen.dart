@@ -227,7 +227,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             Text(tr('categories'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.textTheme.displayLarge?.color, letterSpacing: 1.5)),
                             const SizedBox(height: 16),
 
-                            // PERBAIKAN: Mengganti GridView menjadi Column > Row > Expanded agar responsif mutlak
                             Column(
                               children: [
                                 Row(
@@ -289,7 +288,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           const SizedBox(height: 32),
           Container(width: 100, height: 16, decoration: BoxDecoration(color: skeletonColor, borderRadius: BorderRadius.circular(4))),
           const SizedBox(height: 16),
-          // PERBAIKAN SKELETON: Menyesuaikan dengan susunan Row yang baru
           Column(
             children: [
               Row(
@@ -318,7 +316,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        // PERBAIKAN: Padding vertikal statis agar tinggi kartu tetap konsisten dan tidak terlalu memanjang
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
         decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B).withOpacity(0.7) : Colors.white.withOpacity(0.7),
@@ -382,7 +379,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     int workoutDuration = 30;
     String searchQuery = '';
     bool isSaving = false;
-    const double datasetBaseWeightKg = 70.0;
+
 
     List<Map<String, dynamic>> baseExercises = _allExercises.where((ex) {
       final cat = ex['category']?.toString().toLowerCase() ?? '';
@@ -405,10 +402,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
               int estimatedBurn = 0;
               if (filteredExercises.isNotEmpty && selectedIndex < filteredExercises.length) {
-                int baseCal = _parseSafeInt(filteredExercises[selectedIndex]['cal_per_hour']);
-                double ratio = _userWeightKg / datasetBaseWeightKg;
-                double calPerHourForUser = baseCal * ratio;
-                estimatedBurn = (calPerHourForUser * (workoutDuration / 60.0)).round();
+                double metValue = _parseSafeDouble(filteredExercises[selectedIndex]['met_value']);
+                estimatedBurn = (metValue * _userWeightKg * (workoutDuration / 60.0)).round();
               }
 
               return Padding(
@@ -455,8 +450,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                           itemCount: filteredExercises.length,
                           itemBuilder: (context, index) {
                             bool isSelected = selectedIndex == index;
-                            int baseCal = _parseSafeInt(filteredExercises[index]['cal_per_hour']);
-                            int calPerHourForUser = (baseCal * (_userWeightKg / datasetBaseWeightKg)).round();
+
+                            // PERUBAHAN: Menghitung laju kalori per jam untuk referensi UI berdasarkan MET pengguna
+                            double metValue = _parseSafeDouble(filteredExercises[index]['met_value']);
+                            int calPerHourForUser = (metValue * _userWeightKg).round();
 
                             return GestureDetector(
                               onTap: () { setModalState(() { selectedIndex = index; }); },
