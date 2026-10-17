@@ -80,7 +80,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
       final totalCal = (baseCal * _servings).round();
       final todayStr = DateTime.now().toIso8601String().split('T')[0];
 
-      await _foodService.insertMealLog(_foodId, todayStr, _selectedMealType, totalCal);
+      await _foodService.insertMealLog(_foodId, todayStr, _selectedMealType, _servings, totalCal);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_nameCtrl.text} ${tr('added_to')} ${tr(_selectedMealType.toLowerCase())}!'), backgroundColor: Colors.green));

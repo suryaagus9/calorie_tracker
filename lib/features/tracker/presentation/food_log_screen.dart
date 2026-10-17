@@ -87,7 +87,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         total += cal;
 
         double baseCal = (row['foods']?['calories'] as num?)?.toDouble() ?? 0;
-        double currentPortion = baseCal > 0 ? (cal / baseCal) : 1.0;
+        double currentPortion = (row['serving_size'] as num?)?.toDouble() ?? (baseCal > 0 ? (cal / baseCal) : 1.0);
 
         final mealData = {
           'id': row['id'].toString(),
@@ -264,7 +264,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
                           try {
                             for (var item in editingItems) {
                               int updatedCal = (item['base_cal'] * item['portion']).round();
-                              await _foodService.updateMealLog(item['id'], item['meal_type'], updatedCal);
+                              await _foodService.updateMealLog(item['id'], item['meal_type'], item['portion'] as double, updatedCal);
                             }
 
                             if (mounted) {

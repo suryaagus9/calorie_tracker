@@ -12,7 +12,7 @@ class FoodService {
   Future<List<Map<String, dynamic>>> fetchTodayMeals(String dateStr) async {
     final uid = await _currentUserId;
     final data = await _supabase.from('meal_logs')
-        .select('id, meal_type, calories_consumed, foods(name, calories)')
+        .select('id, meal_type, serving_size, calories_consumed, foods(name, calories)')
         .eq('user_id', uid).eq('date', dateStr).order('created_at', ascending: true);
     return List<Map<String, dynamic>>.from(data);
   }
@@ -48,9 +48,10 @@ class FoodService {
     await _supabase.from('meal_logs').delete().eq('id', logId);
   }
 
-  Future<void> updateMealLog(String logId, String mealType, int calories) async {
+  Future<void> updateMealLog(String logId, String mealType, double servingSize, int calories) async {
     await _supabase.from('meal_logs').update({
       'meal_type': mealType,
+      'serving_size': servingSize,
       'calories_consumed': calories,
     }).eq('id', logId);
   }
@@ -107,10 +108,10 @@ class FoodService {
     return res['id'].toString();
   }
 
-  Future<void> insertMealLog(String? foodId, String dateStr, String mealType, int calories) async {
+  Future<void> insertMealLog(String? foodId, String dateStr, String mealType, double servingSize, int calories) async {
     final uid = await _currentUserId;
     await _supabase.from('meal_logs').insert({
-      'user_id': uid, 'food_id': foodId != null ? int.parse(foodId) : null, 'date': dateStr, 'meal_type': mealType, 'calories_consumed': calories,
+      'user_id': uid, 'food_id': foodId != null ? int.parse(foodId) : null, 'date': dateStr, 'meal_type': mealType, 'serving_size': servingSize, 'calories_consumed': calories,
     });
   }
 
@@ -118,7 +119,6 @@ class FoodService {
     await _supabase.from('foods').update({'name': name, 'calories': cal, 'protein': p, 'carbs': c, 'fat': f}).eq('id', int.parse(foodId));
   }
 
-  // Fungsi RPC untuk menyimpan kustomisasi makro oleh user
   Future<int> saveEditedLocalFood({
     required int oldFoodId,
     required String newName,

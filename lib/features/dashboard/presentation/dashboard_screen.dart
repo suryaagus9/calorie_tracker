@@ -107,7 +107,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         if (meal['foods'] != null) {
           double baseCal = (meal['foods']['calories'] as num?)?.toDouble() ?? 1.0;
-          double ratio = baseCal > 0 ? (consumedCal / baseCal) : 0;
+          double ratio = (meal['serving_size'] as num?)?.toDouble() ?? (baseCal > 0 ? (consumedCal / baseCal) : 0);
+
           _proteinConsumed += ((meal['foods']['protein'] as num?)?.toDouble() ?? 0) * ratio;
           _carbsConsumed += ((meal['foods']['carbs'] as num?)?.toDouble() ?? 0) * ratio;
           _fatConsumed += ((meal['foods']['fat'] as num?)?.toDouble() ?? 0) * ratio;

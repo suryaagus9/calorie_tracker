@@ -707,7 +707,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                             }
 
                             int totalCal = (item['base_cal'] * item['portion']).round();
-                            await _foodService.insertMealLog(foodId, todayStr, item['meal_type'], totalCal);
+                            await _foodService.insertMealLog(foodId, todayStr, item['meal_type'], item['portion'] as double, totalCal);
                           }
 
                           if (mounted) {
