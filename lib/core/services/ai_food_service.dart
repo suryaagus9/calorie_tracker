@@ -24,7 +24,9 @@ class AiFoodService {
          - OPSI KESATUAN: (misal: "Mie Ayam Telur").
          - OPSI PECAHAN: (misal: "Mie Ayam" dan "Telur").
       4. FORMAT NAMA (TITLE CASE): Perbaiki penulisan nama makanan pada "keyword" menjadi Title Case.
-      5. REFERENSI DATA NUTRISI (WAJIB AKURAT): Estimasi nilai nutrisi HARUS didasarkan pada basis data publik.
+      5. REFERENSI DATA NUTRISI (WAJIB AKURAT & TERPRIORITAS): Estimasi nilai nutrisi HARUS menggunakan urutan prioritas sumber basis data berikut:
+         - PRIORITAS UTAMA: Gunakan data makronutrisi dari TKPI (Tabel Komposisi Pangan Indonesia) atau FatSecret.
+         - PRIORITAS KEDUA: Jika makanan tidak ditemukan pada kedua sumber tersebut, gunakan basis data nutrisi publik lain yang benar-benar valid secara saintifik (seperti USDA). Jangan menebak secara sembarangan.      
       6. BOUNDING BOX: Berikan koordinat kotak deteksi dari makanan tersebut pada gambar.
 
       Untuk SETIAP item makanan yang valid, tentukan:
