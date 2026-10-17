@@ -31,11 +31,11 @@ class AiFoodService {
 
       Untuk SETIAP item makanan yang valid, tentukan:
       1. "keyword": Nama makanan bersih tanpa atribut jumlah dalam format Title Case (Cth: "Sate Ayam").
-      2. "quantity": Angka estimasi porsi/jumlahnya (Cth: 3.0).
-      3. "fallback_cal": Total Estimasi kalori referensi valid (angka).
-      4. "fallback_p": Total Estimasi protein referensi valid (g).
-      5. "fallback_c": Total Estimasi karbohidrat referensi valid (g).
-      6. "fallback_f": Total Estimasi lemak referensi valid (g).
+      2. "quantity": Angka estimasi porsi/jumlahnya pada objek gambar (Cth: 3.0).
+      3. "fallback_cal": Total Estimasi kalori referensi valid per 1 porsi standar (angka).
+      4. "fallback_p": Total Estimasi protein referensi valid per 1 porsi standar (g).
+      5. "fallback_c": Total Estimasi karbohidrat referensi valid per 1 porsi standar (g).
+      6. "fallback_f": Total Estimasi lemak referensi valid per 1 porsi standar (g).
       7. "box_2d": Array 4 angka [ymin, xmin, ymax, xmax] yang mewakili kotak deteksi dengan skala 0-1000. Jika tidak ada gambar, kembalikan [0,0,0,0].
 
       Kembalikan HANYA format JSON Array ketat tanpa awalan markdown.
